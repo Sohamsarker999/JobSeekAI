@@ -4,3 +4,5 @@ matplotlib>=3.7.0
 seaborn>=0.13.0
 requests>=2.31.0
 python-dotenv>=1.0.0
+gspread>=6.0.0
+google-auth>=2.20.0
