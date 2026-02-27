@@ -80,10 +80,7 @@ def connect_to_sheet():
 
 
 def fetch_jobs_from_list(max_pages=3):
-    """Fetch jobs directly from the BDJobs list API.
-
-    Returns a list of job dicts with basic info.
-    """
+    """Fetch jobs directly from the BDJobs list API."""
     all_jobs = []
 
     for page in range(1, max_pages + 1):
@@ -111,7 +108,7 @@ def fetch_jobs_from_list(max_pages=3):
 
 
 def fetch_job_detail(job_id):
-    """Fetch full details for a single job (for salary/skills)."""
+    """Fetch full details for a single job."""
     try:
         resp = requests.get(
             DETAIL_URL,
@@ -161,25 +158,42 @@ def parse_job_from_list(job):
     if job_id:
         detail = fetch_job_detail(job_id)
         if detail:
-            # Debug: print detail keys for first job
+            # The real data is nested inside "data" and "common"
+            inner = detail.get("data", {}) or {}
+            common = detail.get("common", {}) or {}
+            if isinstance(inner, list) and inner:
+                inner = inner[0]
+            if isinstance(inner, dict) and isinstance(common, dict):
+                merged = {**inner, **common}
+            elif isinstance(inner, dict):
+                merged = inner
+            elif isinstance(common, dict):
+                merged = common
+            else:
+                merged = {}
+
+            # Debug: print actual fields for first job
             if not hasattr(parse_job_from_list, "_printed"):
-                print(f"  Detail API fields: {list(detail.keys())}")
+                print(f"  Merged fields: {list(merged.keys())}")
+                for k, v in merged.items():
+                    if v and str(v).strip() and str(v) != "None":
+                        print(f"    {k}: {str(v)[:120]}")
                 parse_job_from_list._printed = True
 
-            # Try to find salary
-            for key in detail:
+            # Try to find salary from merged data
+            for key in merged:
                 if "salary" in key.lower():
-                    sal_val = detail[key]
+                    sal_val = merged[key]
                     if sal_val:
                         salary_min, salary_max = extract_salary(str(sal_val))
                         if salary_min:
                             break
 
-            # Try to find skills
+            # Try to find skills from merged data
             skill_parts = []
-            for key in detail:
+            for key in merged:
                 if "skill" in key.lower() or "requirement" in key.lower():
-                    val = detail[key]
+                    val = merged[key]
                     if val and isinstance(val, str) and len(val) < 500:
                         skill_parts.append(val.strip())
             if skill_parts:
