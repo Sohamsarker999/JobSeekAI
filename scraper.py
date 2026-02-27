@@ -38,7 +38,6 @@ HEADERS = {
     "Referer": "https://bdjobs.com/",
 }
 
-# fcatId=8 → IT/Telecommunication category on BDJobs
 LIST_PARAMS = {
     "isPro": 1,
     "rpp": 50,
@@ -60,55 +59,43 @@ SHEET_NAME = "BDJobs Data"
 
 
 def connect_to_sheet():
-    """Authenticate with Google and return the worksheet."""
     creds_json = os.environ.get("GOOGLE_CREDENTIALS")
     if not creds_json:
         raise RuntimeError("GOOGLE_CREDENTIALS environment variable not set")
-
     creds_dict = json.loads(creds_json)
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     client = gspread.authorize(creds)
-
     spreadsheet = client.open(SHEET_NAME)
-    worksheet = spreadsheet.sheet1
-    return worksheet
+    return spreadsheet.sheet1
 
 
 # ---------------------------------------------------------------------------
-# Scraping Functions
+# Scraping
 # ---------------------------------------------------------------------------
 
 
 def fetch_jobs_from_list(max_pages=3):
-    """Fetch jobs directly from the BDJobs list API."""
     all_jobs = []
-
     for page in range(1, max_pages + 1):
         params = {**LIST_PARAMS, "pg": page}
         try:
             resp = requests.get(LIST_URL, params=params, headers=HEADERS, timeout=15)
             resp.raise_for_status()
             data = resp.json()
-
             jobs = data if isinstance(data, list) else data.get("data", [])
-
             if not jobs:
                 break
-
             all_jobs.extend(jobs)
             print(f"  Page {page}: found {len(jobs)} jobs")
             time.sleep(0.5)
-
         except Exception as e:
             print(f"  Error on page {page}: {e}")
             break
-
     print(f"Total jobs collected: {len(all_jobs)}")
     return all_jobs
 
 
 def fetch_job_detail(job_id):
-    """Fetch full details for a single job."""
     try:
         resp = requests.get(
             DETAIL_URL,
@@ -123,14 +110,11 @@ def fetch_job_detail(job_id):
 
 
 def extract_salary(salary_str):
-    """Extract min and max salary from a string."""
     if not salary_str or str(salary_str).lower() in ("negotiable", "na", "n/a", "", "none", "0"):
         return "", ""
-
     salary_str = str(salary_str).replace(",", "")
     numbers = re.findall(r"\d+", salary_str)
     numbers = [int(n) for n in numbers if int(n) > 1000]
-
     if len(numbers) >= 2:
         return min(numbers), max(numbers)
     elif len(numbers) == 1:
@@ -138,10 +122,28 @@ def extract_salary(salary_str):
     return "", ""
 
 
-def parse_job_from_list(job):
-    """Convert a list API job object into a row for our spreadsheet."""
+def flatten_dict(obj, prefix="", result=None):
+    """Recursively flatten any nested dict/list into dot-separated keys."""
+    if result is None:
+        result = {}
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            flatten_dict(v, f"{prefix}{k}.", result)
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            flatten_dict(item, f"{prefix}{i}.", result)
+    else:
+        if obj is not None and str(obj).strip() and str(obj) != "None":
+            result[prefix.rstrip(".")] = obj
+    return result
 
-    # Get basic fields from list API
+
+_debug_printed = False
+
+
+def parse_job_from_list(job):
+    global _debug_printed
+
     job_title = str(job.get("jobTitle", "") or job.get("JobTitle", "") or "").strip()
     company = str(job.get("companyName", "") or job.get("CompanyName", "") or "").strip()
     location = str(job.get("location", "") or job.get("Location", "") or "Dhaka").strip()
@@ -150,7 +152,6 @@ def parse_job_from_list(job):
     if not job_title:
         return None
 
-    # Try to get salary and skills from detail API
     salary_min = ""
     salary_max = ""
     skills = ""
@@ -158,44 +159,31 @@ def parse_job_from_list(job):
     if job_id:
         detail = fetch_job_detail(job_id)
         if detail:
-            # The real data is nested inside "data" and "common"
-            inner = detail.get("data", {}) or {}
-            common = detail.get("common", {}) or {}
-            if isinstance(inner, list) and inner:
-                inner = inner[0]
-            if isinstance(inner, dict) and isinstance(common, dict):
-                merged = {**inner, **common}
-            elif isinstance(inner, dict):
-                merged = inner
-            elif isinstance(common, dict):
-                merged = common
-            else:
-                merged = {}
+            # Debug: dump the FULL raw response for the first job
+            if not _debug_printed:
+                raw = json.dumps(detail, default=str)
+                print(f"\n=== RAW DETAIL RESPONSE (first job, id={job_id}) ===")
+                # Print in chunks so GitHub Actions doesn't truncate
+                for i in range(0, len(raw), 500):
+                    print(raw[i:i+500])
+                print("=== END RAW DETAIL ===\n")
+                _debug_printed = True
 
-            # Debug: print actual fields for first job
-            if not hasattr(parse_job_from_list, "_printed"):
-                print(f"  Merged fields: {list(merged.keys())}")
-                for k, v in merged.items():
-                    if v and str(v).strip() and str(v) != "None":
-                        print(f"    {k}: {str(v)[:120]}")
-                parse_job_from_list._printed = True
+            # Flatten everything and search
+            flat = flatten_dict(detail)
 
-            # Try to find salary from merged data
-            for key in merged:
-                if "salary" in key.lower():
-                    sal_val = merged[key]
-                    if sal_val:
-                        salary_min, salary_max = extract_salary(str(sal_val))
-                        if salary_min:
-                            break
+            for key, val in flat.items():
+                if "salary" in key.lower() and val:
+                    salary_min, salary_max = extract_salary(str(val))
+                    if salary_min:
+                        break
 
-            # Try to find skills from merged data
             skill_parts = []
-            for key in merged:
-                if "skill" in key.lower() or "requirement" in key.lower():
-                    val = merged[key]
-                    if val and isinstance(val, str) and len(val) < 500:
-                        skill_parts.append(val.strip())
+            for key, val in flat.items():
+                if ("skill" in key.lower() or "requirement" in key.lower()) and val:
+                    val_str = str(val)
+                    if len(val_str) < 500:
+                        skill_parts.append(val_str.strip())
             if skill_parts:
                 skills = ", ".join(skill_parts)
 
@@ -219,11 +207,9 @@ def parse_job_from_list(job):
 def main():
     print(f"=== BDJobs Scraper — {datetime.now().strftime('%Y-%m-%d %H:%M')} ===\n")
 
-    # Step 1: Connect to Google Sheet
     print("1. Connecting to Google Sheets...")
     worksheet = connect_to_sheet()
 
-    # Step 2: Get existing job titles to avoid duplicates
     print("2. Checking existing data...")
     existing_data = worksheet.get_all_values()
     existing_titles = set()
@@ -234,7 +220,6 @@ def main():
                 existing_titles.add(key)
     print(f"   Existing entries: {len(existing_titles)}")
 
-    # Step 3: Fetch jobs from list API
     print("3. Fetching job listings from BDJobs...")
     jobs = fetch_jobs_from_list(max_pages=3)
 
@@ -242,7 +227,6 @@ def main():
         print("No jobs found. Exiting.")
         return
 
-    # Step 4: Parse and enrich each job
     print("4. Processing jobs and fetching details...")
     new_rows = []
     for i, job in enumerate(jobs):
@@ -259,7 +243,6 @@ def main():
 
     print(f"\n   New jobs to add: {len(new_rows)}")
 
-    # Step 5: Write to Google Sheet
     if new_rows:
         print("5. Writing to Google Sheets...")
         rows_to_add = [
@@ -275,7 +258,6 @@ def main():
             ]
             for r in new_rows
         ]
-
         worksheet.append_rows(rows_to_add, value_input_option="RAW")
         print(f"   Added {len(rows_to_add)} new jobs!")
     else:
