@@ -1,0 +1,99 @@
+job_title,company,salary_min,salary_max,skills,industry,location
+Software Engineer,Grameenphone,45000,75000,"Python, Django, REST API, PostgreSQL, Git",Telecommunications,Dhaka
+Data Analyst,bKash,40000,65000,"Python, SQL, Excel, Tableau, Statistics",Fintech,Dhaka
+Frontend Developer,Pathao,35000,60000,"JavaScript, React, HTML, CSS, TypeScript",Ride-sharing,Dhaka
+Backend Developer,ShopUp,50000,80000,"Node.js, Express, MongoDB, Docker, AWS",E-commerce,Dhaka
+Machine Learning Engineer,Augmedix,80000,120000,"Python, TensorFlow, Scikit-learn, NLP, Deep Learning",Healthcare IT,Dhaka
+DevOps Engineer,Selise Digital Platform,55000,90000,"Docker, Kubernetes, AWS, CI/CD, Linux, Terraform",Software Services,Dhaka
+Mobile App Developer,Chaldal,40000,70000,"Flutter, Dart, Firebase, REST API, Git",E-commerce,Dhaka
+Full Stack Developer,Brain Station 23,45000,75000,"JavaScript, React, Node.js, MongoDB, AWS",Software Services,Dhaka
+Data Scientist,Robi Axiata,60000,100000,"Python, Machine Learning, SQL, Statistics, TensorFlow",Telecommunications,Dhaka
+UI/UX Designer,10 Minute School,30000,55000,"Figma, Adobe XD, Sketch, CSS, User Research",EdTech,Dhaka
+Software Engineer,BJIT Group,40000,70000,"Java, Spring Boot, Microservices, MySQL, Docker",Software Services,Dhaka
+QA Engineer,Enosis Solutions,35000,60000,"Selenium, Python, JIRA, API Testing, Agile",Software Services,Dhaka
+Project Manager,TigerIT Bangladesh,50000,85000,"Agile, Scrum, JIRA, Communication, Leadership",Software Services,Dhaka
+Cybersecurity Analyst,Dutch-Bangla Bank,55000,90000,"Network Security, Penetration Testing, SIEM, Linux, Python",Banking,Dhaka
+Cloud Engineer,Samsung R&D Bangladesh,60000,95000,"AWS, Azure, Docker, Kubernetes, Terraform, CI/CD",Electronics,Dhaka
+Data Engineer,Nagad,50000,85000,"Python, SQL, Apache Spark, Airflow, AWS, ETL",Fintech,Dhaka
+Software Engineer,Kaz Software,38000,65000,"C#, .NET, SQL Server, Azure, Git",Software Services,Dhaka
+Frontend Developer,Cefalo Bangladesh,42000,72000,"React, TypeScript, Redux, HTML, CSS, Jest",Software Services,Dhaka
+Backend Developer,Optimizely,55000,90000,"Python, Django, PostgreSQL, Redis, Docker",Software Services,Dhaka
+AI Engineer,Reverise,70000,110000,"Python, PyTorch, NLP, Computer Vision, Deep Learning",AI/ML,Dhaka
+Software Engineer,Therap BD,42000,68000,"Java, Angular, PostgreSQL, REST API, Git",Healthcare IT,Dhaka
+Business Analyst,Banglalink,40000,70000,"Excel, SQL, Power BI, Communication, Requirements Analysis",Telecommunications,Chittagong
+Mobile App Developer,Sheba.xyz,38000,65000,"React Native, JavaScript, Firebase, REST API, Git",Marketplace,Dhaka
+Database Administrator,Islami Bank Bangladesh,45000,75000,"Oracle, SQL, MySQL, Backup & Recovery, Performance Tuning",Banking,Dhaka
+Full Stack Developer,Priyo.com,35000,60000,"PHP, Laravel, MySQL, JavaScript, Vue.js",Media,Dhaka
+Software Engineer,DataSoft Systems,40000,68000,"Java, Spring Boot, Angular, MySQL, Docker",Software Services,Dhaka
+Data Analyst,Daraz Bangladesh,38000,62000,"Python, SQL, Excel, Google Analytics, Tableau",E-commerce,Dhaka
+DevOps Engineer,Welldev,48000,80000,"AWS, Docker, Jenkins, Ansible, Linux, Git",Software Services,Dhaka
+Machine Learning Engineer,Intelligent Machines,65000,105000,"Python, Scikit-learn, TensorFlow, NLP, Statistics",AI/ML,Dhaka
+Frontend Developer,Nascenia,35000,58000,"JavaScript, Angular, TypeScript, HTML, CSS, SASS",Software Services,Dhaka
+Software Engineer,IQVIA,50000,82000,"Python, R, SQL, SAS, Clinical Data",Pharmaceutical,Dhaka
+QA Engineer,Craftsmen,32000,55000,"Manual Testing, Selenium, Postman, SQL, Agile",Software Services,Dhaka
+Project Manager,Leads Corporation,48000,80000,"Agile, Scrum, MS Project, Risk Management, Communication",Software Services,Dhaka
+Backend Developer,SSL Wireless,45000,75000,"PHP, Laravel, MySQL, REST API, Redis",Telecommunications,Dhaka
+UI/UX Designer,Jeeon Bangladesh,28000,50000,"Figma, Adobe XD, Prototyping, User Research, HTML",Healthcare IT,Dhaka
+Cloud Engineer,TechnoNext,50000,82000,"Azure, AWS, Docker, CI/CD, PowerShell, Linux",Software Services,Dhaka
+Data Scientist,Grameenphone,65000,105000,"Python, Machine Learning, Deep Learning, SQL, Statistics",Telecommunications,Dhaka
+Software Engineer,Reve Systems,42000,70000,"C++, Python, VoIP, Linux, Networking",Telecommunications,Dhaka
+Full Stack Developer,Dohatec New Media,38000,62000,"JavaScript, React, Node.js, PostgreSQL, Git",Software Services,Dhaka
+Mobile App Developer,ACI Logistics,35000,60000,"Android, Kotlin, Firebase, REST API, Git",Logistics,Dhaka
+Data Analyst,City Bank,40000,65000,"Excel, SQL, Power BI, Python, Financial Modeling",Banking,Dhaka
+Cybersecurity Analyst,bKash,60000,95000,"Ethical Hacking, SIEM, Incident Response, Python, Linux",Fintech,Dhaka
+AI Engineer,Braincraft,65000,100000,"Python, NLP, Computer Vision, TensorFlow, Docker",AI/ML,Dhaka
+Software Engineer,Windmill Digital,40000,68000,"Ruby, Rails, PostgreSQL, JavaScript, Docker",Software Services,Dhaka
+Data Engineer,Robi Axiata,52000,88000,"Python, Apache Kafka, Spark, SQL, Airflow",Telecommunications,Dhaka
+Frontend Developer,Vivasoft,36000,60000,"React, Redux, TypeScript, Webpack, CSS",Software Services,Dhaka
+Backend Developer,Mpower Social,42000,72000,"Node.js, Express, MongoDB, GraphQL, Docker",Fintech,Dhaka
+Software Engineer,Samsung R&D Bangladesh,55000,90000,"C++, Python, Algorithm Design, Linux, Git",Electronics,Dhaka
+QA Engineer,Kaz Software,30000,52000,"Cypress, JavaScript, API Testing, SQL, Agile",Software Services,Dhaka
+Project Manager,Grameenphone,55000,95000,"PMP, Agile, Stakeholder Management, Budgeting, Communication",Telecommunications,Dhaka
+Machine Learning Engineer,Pathao,60000,100000,"Python, Recommendation Systems, SQL, Scikit-learn, AWS",Ride-sharing,Dhaka
+Full Stack Developer,Portonics,38000,65000,"Python, Django, React, PostgreSQL, Docker",Software Services,Dhaka
+Software Engineer,Orion Informatics,35000,58000,"PHP, Laravel, Vue.js, MySQL, Git",Software Services,Dhaka
+Data Analyst,10 Minute School,35000,58000,"Python, SQL, Excel, Data Visualization, Statistics",EdTech,Dhaka
+DevOps Engineer,BJIT Group,50000,85000,"AWS, Terraform, Docker, Kubernetes, Jenkins",Software Services,Dhaka
+Mobile App Developer,Sindabad.com,32000,55000,"Flutter, Dart, Firebase, UI Design, Git",E-commerce,Dhaka
+Business Analyst,Standard Chartered BD,45000,78000,"SQL, Excel, Power BI, Business Process, Communication",Banking,Dhaka
+Frontend Developer,Cefalo Bangladesh,40000,68000,"Vue.js, JavaScript, Tailwind CSS, HTML, REST API",Software Services,Chittagong
+Backend Developer,Appscode,48000,80000,"Go, Kubernetes, gRPC, Docker, Linux",Software Services,Dhaka
+UI/UX Designer,Pathao,32000,58000,"Figma, Design Systems, Prototyping, User Research, CSS",Ride-sharing,Dhaka
+Data Scientist,bKash,62000,100000,"Python, Machine Learning, SQL, A/B Testing, Deep Learning",Fintech,Dhaka
+Software Engineer,Akij Venture,38000,62000,"Java, Spring Boot, MySQL, REST API, Git",Conglomerate,Dhaka
+Cloud Engineer,Banglalink,52000,88000,"AWS, Azure, Kubernetes, Terraform, CI/CD",Telecommunications,Chittagong
+Data Engineer,Chaldal,45000,75000,"Python, SQL, ETL, Apache Airflow, BigQuery",E-commerce,Dhaka
+AI Engineer,Ulkasemi,60000,95000,"Python, NLP, LLM, Prompt Engineering, FastAPI",AI/ML,Dhaka
+Software Engineer,Field Nation,50000,85000,"PHP, Symfony, MySQL, Redis, Elasticsearch",Software Services,Dhaka
+Full Stack Developer,Monstarlab Bangladesh,42000,72000,"TypeScript, React, Node.js, AWS, Docker",Software Services,Dhaka
+Data Analyst,Unilever Bangladesh,42000,70000,"Python, SQL, Tableau, Excel, Statistical Analysis",FMCG,Dhaka
+Mobile App Developer,Pragoti Systems,30000,52000,"Android, Java, Firebase, SQLite, REST API",Software Services,Sylhet
+QA Engineer,Brain Station 23,33000,56000,"Appium, Selenium, Python, CI/CD, JIRA",Software Services,Dhaka
+Software Engineer,Deligram,35000,58000,"Python, Flask, PostgreSQL, JavaScript, Git",E-commerce,Dhaka
+Backend Developer,Tiger Media,40000,68000,"Python, FastAPI, PostgreSQL, Redis, Celery",Media,Dhaka
+Cybersecurity Analyst,Robi Axiata,55000,88000,"SOC Operations, Vulnerability Assessment, Python, Linux, SIEM",Telecommunications,Dhaka
+Project Manager,Enosis Solutions,50000,85000,"Agile, JIRA, Resource Planning, Communication, Risk Management",Software Services,Dhaka
+Data Scientist,Augmedix,70000,115000,"Python, NLP, Deep Learning, Clinical NLP, TensorFlow",Healthcare IT,Dhaka
+Frontend Developer,ShopUp,37000,62000,"React, Next.js, Tailwind CSS, TypeScript, Git",E-commerce,Dhaka
+DevOps Engineer,Optimizely,55000,92000,"GCP, Docker, Kubernetes, Terraform, Python",Software Services,Dhaka
+Machine Learning Engineer,Samsung R&D Bangladesh,70000,110000,"Python, PyTorch, Computer Vision, C++, Research",Electronics,Dhaka
+Full Stack Developer,Hishab,40000,68000,"JavaScript, React, Express, MongoDB, AWS",Fintech,Dhaka
+Software Engineer,Commlink Infotech,36000,60000,"C#, ASP.NET, SQL Server, JavaScript, Azure",Software Services,Dhaka
+Data Analyst,Nagad,38000,63000,"SQL, Python, Excel, Data Modeling, Visualization",Fintech,Dhaka
+Backend Developer,Welldev,44000,74000,"Java, Spring Boot, PostgreSQL, Kafka, Docker",Software Services,Dhaka
+Mobile App Developer,10 Minute School,36000,62000,"React Native, JavaScript, Redux, Firebase, Git",EdTech,Dhaka
+Software Engineer,DSi,42000,70000,"Java, Angular, Oracle, Spring Boot, Microservices",Software Services,Dhaka
+Business Analyst,Grameenphone,42000,72000,"Data Analysis, SQL, Excel, Power BI, Stakeholder Management",Telecommunications,Dhaka
+AI Engineer,Robi Axiata,68000,108000,"Python, LLM, NLP, Cloud AI, Machine Learning",Telecommunications,Dhaka
+Frontend Developer,Portonics,34000,56000,"Angular, TypeScript, RxJS, HTML, SASS",Software Services,Dhaka
+Data Engineer,Pathao,48000,80000,"Python, Apache Spark, Kafka, SQL, AWS",Ride-sharing,Dhaka
+Cloud Engineer,BJIT Group,48000,78000,"AWS, Docker, Linux, Ansible, Monitoring",Software Services,Dhaka
+QA Engineer,ShopUp,30000,50000,"Manual Testing, Postman, SQL, Jira, Communication",E-commerce,Dhaka
+Software Engineer,Synesis IT,40000,66000,"Python, Django, React, PostgreSQL, Docker",Software Services,Dhaka
+Full Stack Developer,Craftsmen,36000,60000,"Laravel, Vue.js, MySQL, Docker, Git",Software Services,Dhaka
+Data Scientist,Pathao,58000,95000,"Python, Machine Learning, SQL, Experimentation, Statistics",Ride-sharing,Dhaka
+Software Engineer,Bdjobs.com,32000,55000,"PHP, MySQL, JavaScript, jQuery, Linux",Marketplace,Dhaka
+UI/UX Designer,Chaldal,30000,52000,"Figma, Sketch, User Testing, Wireframing, HTML",E-commerce,Dhaka
+DevOps Engineer,Field Nation,52000,88000,"AWS, Terraform, Ansible, Docker, Jenkins, Python",Software Services,Dhaka
+Mobile App Developer,Daraz Bangladesh,38000,65000,"iOS, Swift, UIKit, REST API, Git",E-commerce,Dhaka
+Backend Developer,Reverise,52000,85000,"Python, FastAPI, PostgreSQL, Docker, Celery, Redis",AI/ML,Dhaka
