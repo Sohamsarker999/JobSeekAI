@@ -100,8 +100,18 @@ def fetch_job_ids(max_pages=3):
             if not jobs:
                 break
 
+# Debug: print keys of first job to find correct field names
+            if page == 1 and jobs:
+                print(f"  API fields: {list(jobs[0].keys())}")
+                print(f"  Sample job: {jobs[0]}")
+
             for job in jobs:
-                job_id = job.get("jobId") or job.get("JobId") or job.get("id")
+                # Try every possible key
+                job_id = None
+                for key in job:
+                    if "id" in key.lower() and "cat" not in key.lower():
+                        job_id = job[key]
+                        break
                 if job_id:
                     job_ids.append(str(job_id))
 
