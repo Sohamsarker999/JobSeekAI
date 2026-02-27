@@ -41,9 +41,9 @@ HEADERS = {
 # fcatId=8 → IT/Telecommunication category on BDJobs
 LIST_PARAMS = {
     "isPro": 1,
-    "rpp": 50,       # results per page (max 50)
+    "rpp": 50,
     "pg": 1,
-    "fcatId": 8,     # IT/Telecom category
+    "fcatId": 8,
 }
 
 
@@ -56,12 +56,11 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-SHEET_NAME = "BDJobs Data"  # must match the sheet you created
+SHEET_NAME = "BDJobs Data"
 
 
 def connect_to_sheet():
     """Authenticate with Google and return the worksheet."""
-    # GitHub Actions stores the JSON key as a secret (string)
     creds_json = os.environ.get("GOOGLE_CREDENTIALS")
     if not creds_json:
         raise RuntimeError("GOOGLE_CREDENTIALS environment variable not set")
@@ -80,12 +79,12 @@ def connect_to_sheet():
 # ---------------------------------------------------------------------------
 
 
-def fetch_job_ids(max_pages=3):
-    """Fetch job IDs from the BDJobs list API.
+def fetch_jobs_from_list(max_pages=3):
+    """Fetch jobs directly from the BDJobs list API.
 
-    max_pages=3 → up to 150 jobs (50 per page). Keep it small to be polite.
+    Returns a list of job dicts with basic info.
     """
-    job_ids = []
+    all_jobs = []
 
     for page in range(1, max_pages + 1):
         params = {**LIST_PARAMS, "pg": page}
@@ -94,40 +93,25 @@ def fetch_job_ids(max_pages=3):
             resp.raise_for_status()
             data = resp.json()
 
-            # The API returns a list of job objects
             jobs = data if isinstance(data, list) else data.get("data", [])
 
             if not jobs:
                 break
 
-# Debug: print keys of first job to find correct field names
-            if page == 1 and jobs:
-                print(f"  API fields: {list(jobs[0].keys())}")
-                print(f"  Sample job: {jobs[0]}")
-
-            for job in jobs:
-                # Try every possible key
-                job_id = None
-                for key in job:
-                    if "id" in key.lower() and "cat" not in key.lower():
-                        job_id = job[key]
-                        break
-                if job_id:
-                    job_ids.append(str(job_id))
-
+            all_jobs.extend(jobs)
             print(f"  Page {page}: found {len(jobs)} jobs")
-            time.sleep(0.5)  # be polite
+            time.sleep(0.5)
 
         except Exception as e:
             print(f"  Error on page {page}: {e}")
             break
 
-    print(f"Total job IDs collected: {len(job_ids)}")
-    return job_ids
+    print(f"Total jobs collected: {len(all_jobs)}")
+    return all_jobs
 
 
 def fetch_job_detail(job_id):
-    """Fetch full details for a single job."""
+    """Fetch full details for a single job (for salary/skills)."""
     try:
         resp = requests.get(
             DETAIL_URL,
@@ -137,23 +121,18 @@ def fetch_job_detail(job_id):
         )
         resp.raise_for_status()
         return resp.json()
-    except Exception as e:
-        print(f"  Could not fetch job {job_id}: {e}")
+    except Exception:
         return None
 
 
 def extract_salary(salary_str):
-    """Try to extract min and max salary from a salary string.
-
-    Examples:
-      "Tk. 25000 - 40000"  → (25000, 40000)
-      "Negotiable"         → ("", "")
-    """
-    if not salary_str or salary_str.lower() in ("negotiable", "na", "n/a", ""):
+    """Extract min and max salary from a string."""
+    if not salary_str or str(salary_str).lower() in ("negotiable", "na", "n/a", "", "none", "0"):
         return "", ""
 
-    numbers = re.findall(r"[\d,]+", salary_str.replace(",", ""))
-    numbers = [int(n) for n in numbers if n.isdigit()]
+    salary_str = str(salary_str).replace(",", "")
+    numbers = re.findall(r"\d+", salary_str)
+    numbers = [int(n) for n in numbers if int(n) > 1000]
 
     if len(numbers) >= 2:
         return min(numbers), max(numbers)
@@ -162,80 +141,58 @@ def extract_salary(salary_str):
     return "", ""
 
 
-def extract_skills(detail):
-    """Extract skills from job detail — checks multiple possible fields."""
-    # BDJobs stores skills in different fields depending on the listing
-    candidates = [
-        detail.get("skills", ""),
-        detail.get("Skills", ""),
-        detail.get("otherSkills", ""),
-        detail.get("OtherSkills", ""),
-        detail.get("additionalRequirements", ""),
-    ]
+def parse_job_from_list(job):
+    """Convert a list API job object into a row for our spreadsheet."""
 
-    skills = set()
-    for field in candidates:
-        if field and isinstance(field, str):
-            # Split by common delimiters
-            for part in re.split(r"[,;•·\n]", field):
-                cleaned = part.strip().strip("-").strip()
-                if cleaned and len(cleaned) < 50:  # skip long sentences
-                    skills.add(cleaned)
+    # Get basic fields from list API
+    job_title = str(job.get("jobTitle", "") or job.get("JobTitle", "") or "").strip()
+    company = str(job.get("companyName", "") or job.get("CompanyName", "") or "").strip()
+    location = str(job.get("location", "") or job.get("Location", "") or "Dhaka").strip()
+    job_id = str(job.get("Jobid", "") or job.get("jobId", "") or job.get("JobId", "") or "")
 
-    return ", ".join(sorted(skills)) if skills else ""
-
-
-def parse_job(detail):
-    """Convert raw API detail into a clean row for our spreadsheet."""
-    if not detail:
+    if not job_title:
         return None
 
-    salary_str = (
-        detail.get("salary", "")
-        or detail.get("Salary", "")
-        or detail.get("salaryRange", "")
-        or ""
-    )
-    salary_min, salary_max = extract_salary(salary_str)
+    # Try to get salary and skills from detail API
+    salary_min = ""
+    salary_max = ""
+    skills = ""
 
-    job_title = (
-        detail.get("jobTitle", "")
-        or detail.get("JobTitle", "")
-        or detail.get("jobtitle", "")
-        or ""
-    ).strip()
+    if job_id:
+        detail = fetch_job_detail(job_id)
+        if detail:
+            # Debug: print detail keys for first job
+            if not hasattr(parse_job_from_list, "_printed"):
+                print(f"  Detail API fields: {list(detail.keys())}")
+                parse_job_from_list._printed = True
 
-    company = (
-        detail.get("companyName", "")
-        or detail.get("CompanyName", "")
-        or detail.get("company", "")
-        or ""
-    ).strip()
+            # Try to find salary
+            for key in detail:
+                if "salary" in key.lower():
+                    sal_val = detail[key]
+                    if sal_val:
+                        salary_min, salary_max = extract_salary(str(sal_val))
+                        if salary_min:
+                            break
 
-    location = (
-        detail.get("jobLocation", "")
-        or detail.get("JobLocation", "")
-        or detail.get("location", "")
-        or ""
-    ).strip()
-
-    industry = (
-        detail.get("industry", "")
-        or detail.get("Industry", "")
-        or detail.get("functionalCategory", "")
-        or ""
-    ).strip()
-
-    skills = extract_skills(detail)
+            # Try to find skills
+            skill_parts = []
+            for key in detail:
+                if "skill" in key.lower() or "requirement" in key.lower():
+                    val = detail[key]
+                    if val and isinstance(val, str) and len(val) < 500:
+                        skill_parts.append(val.strip())
+            if skill_parts:
+                skills = ", ".join(skill_parts)
 
     return {
         "job_title": job_title,
         "company": company,
-        "salary_min": salary_min,
-        "salary_max": salary_max,
+        "salary_min": str(salary_min),
+        "salary_max": str(salary_max),
         "skills": skills,
-        "industry": industry if industry else "IT/Telecommunication",
-        "location": location if location else "Dhaka",
+        "industry": "IT/Telecommunication",
+        "location": location if location and location.lower() != "none" else "Dhaka",
         "date_scraped": datetime.now().strftime("%Y-%m-%d"),
     }
 
@@ -256,38 +213,34 @@ def main():
     print("2. Checking existing data...")
     existing_data = worksheet.get_all_values()
     existing_titles = set()
-    if len(existing_data) > 1:  # has data beyond headers
+    if len(existing_data) > 1:
         for row in existing_data[1:]:
             if row:
-                # Unique key = job_title + company
                 key = f"{row[0]}|{row[1]}".lower().strip()
                 existing_titles.add(key)
     print(f"   Existing entries: {len(existing_titles)}")
 
-    # Step 3: Fetch job IDs
+    # Step 3: Fetch jobs from list API
     print("3. Fetching job listings from BDJobs...")
-    job_ids = fetch_job_ids(max_pages=3)
+    jobs = fetch_jobs_from_list(max_pages=3)
 
-    if not job_ids:
+    if not jobs:
         print("No jobs found. Exiting.")
         return
 
-    # Step 4: Fetch details and build rows
-    print("4. Fetching job details...")
+    # Step 4: Parse and enrich each job
+    print("4. Processing jobs and fetching details...")
     new_rows = []
-    for i, job_id in enumerate(job_ids):
-        detail = fetch_job_detail(job_id)
-        if detail:
-            parsed = parse_job(detail)
-            if parsed and parsed["job_title"]:
-                key = f"{parsed['job_title']}|{parsed['company']}".lower().strip()
-                if key not in existing_titles:
-                    new_rows.append(parsed)
-                    existing_titles.add(key)
+    for i, job in enumerate(jobs):
+        parsed = parse_job_from_list(job)
+        if parsed and parsed["job_title"]:
+            key = f"{parsed['job_title']}|{parsed['company']}".lower().strip()
+            if key not in existing_titles:
+                new_rows.append(parsed)
+                existing_titles.add(key)
 
-        # Progress + be polite
         if (i + 1) % 10 == 0:
-            print(f"   Processed {i + 1}/{len(job_ids)}")
+            print(f"   Processed {i + 1}/{len(jobs)}")
         time.sleep(0.3)
 
     print(f"\n   New jobs to add: {len(new_rows)}")
@@ -299,8 +252,8 @@ def main():
             [
                 r["job_title"],
                 r["company"],
-                str(r["salary_min"]),
-                str(r["salary_max"]),
+                r["salary_min"],
+                r["salary_max"],
                 r["skills"],
                 r["industry"],
                 r["location"],
@@ -310,7 +263,7 @@ def main():
         ]
 
         worksheet.append_rows(rows_to_add, value_input_option="RAW")
-        print(f"   ✅ Added {len(rows_to_add)} new jobs!")
+        print(f"   Added {len(rows_to_add)} new jobs!")
     else:
         print("5. No new jobs to add.")
 
