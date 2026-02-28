@@ -212,8 +212,9 @@ hr {
   font-size   : 0.73rem !important;
   font-weight : 500 !important;
 }
-/* Sidebar reset button */
-[data-testid="stSidebar"] .stButton button {
+/* Sidebar reset button — specific override */
+[data-testid="stSidebar"] .stButton button,
+[data-testid="stSidebar"] .stButton button:not([kind="primary"]) {
   background   : transparent !important;
   border       : 1px solid var(--border-strong) !important;
   color        : var(--text-muted) !important;
@@ -222,9 +223,13 @@ hr {
   font-size    : 0.8rem !important;
   font-weight  : 500 !important;
   height       : 36px !important;
+  min-height   : 36px !important;
+  max-height   : 36px !important;
   transition   : all 0.15s ease !important;
+  white-space  : nowrap !important;
 }
-[data-testid="stSidebar"] .stButton button:hover {
+[data-testid="stSidebar"] .stButton button:hover,
+[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover {
   background  : var(--stone-100) !important;
   border-color: var(--stone-400) !important;
   color       : var(--text-body) !important;
@@ -303,6 +308,16 @@ p,span,label,div,li { font-family:var(--font-sans) !important; }
   font-size  : 0.74rem !important;
   font-weight: 500 !important;
 }
+/* Hide delta arrow SVGs that render as ugly icons */
+[data-testid="stMetricDelta"] svg {
+  display: none !important;
+}
+/* Ensure metric value never overflows */
+[data-testid="stMetricValue"] {
+  white-space: nowrap !important;
+  overflow   : hidden !important;
+  text-overflow: ellipsis !important;
+}
 
 /* ─────────────────────────────────────────────────────────────────────
    BUTTONS
@@ -337,8 +352,7 @@ button[data-testid="baseButton-primary"]:active,
 
 /* Secondary */
 button[data-testid="baseButton-secondary"],
-.stButton button[kind="secondary"],
-.stButton button:not([kind="primary"]) {
+.stButton button[kind="secondary"] {
   background   : var(--bg-surface) !important;
   border       : 1px solid var(--border-strong) !important;
   color        : var(--text-body) !important;
@@ -347,15 +361,58 @@ button[data-testid="baseButton-secondary"],
   font-size    : 0.82rem !important;
   border-radius: var(--r-sm) !important;
   height       : 38px !important;
+  min-height   : 38px !important;
+  max-height   : 38px !important;
   box-shadow   : var(--shadow-xs) !important;
   transition   : all 0.15s ease !important;
+  /* Prevent text wrapping */
+  white-space  : nowrap !important;
+  overflow     : hidden !important;
+  text-overflow: ellipsis !important;
+  display      : flex !important;
+  align-items  : center !important;
+  justify-content: center !important;
+  padding      : 0 12px !important;
 }
 button[data-testid="baseButton-secondary"]:hover,
-.stButton button:not([kind="primary"]):hover {
+.stButton button[kind="secondary"]:hover {
   border-color: var(--accent) !important;
   color       : var(--accent-dark) !important;
   background  : var(--gold-100) !important;
   box-shadow  : var(--shadow-sm) !important;
+}
+/* Generic fallback for other non-primary, non-secondary buttons */
+.stButton button:not([kind="primary"]):not([kind="secondary"]) {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-strong) !important;
+  color        : var(--text-body) !important;
+  font-family  : var(--font-sans) !important;
+  font-weight  : 500 !important;
+  font-size    : 0.82rem !important;
+  border-radius: var(--r-sm) !important;
+  height       : 38px !important;
+  min-height   : 38px !important;
+  max-height   : 38px !important;
+  box-shadow   : var(--shadow-xs) !important;
+  transition   : all 0.15s ease !important;
+  white-space  : nowrap !important;
+  overflow     : hidden !important;
+  text-overflow: ellipsis !important;
+}
+.stButton button:not([kind="primary"]):not([kind="secondary"]):hover {
+  border-color: var(--accent) !important;
+  color       : var(--accent-dark) !important;
+  background  : var(--gold-100) !important;
+  box-shadow  : var(--shadow-sm) !important;
+}
+/* Ensure button inner p/span don't wrap */
+.stButton button p,
+.stButton button span {
+  white-space  : nowrap !important;
+  overflow     : hidden !important;
+  text-overflow: ellipsis !important;
+  max-width    : 100% !important;
+  display      : block !important;
 }
 
 /* Download */
@@ -522,7 +579,26 @@ textarea::placeholder { color: var(--text-faint) !important; }
   background: var(--stone-50) !important;
   color     : var(--text-ink) !important;
 }
-[data-testid="stExpander"] summary svg { color: var(--accent) !important; }
+/* Fix SVG icon color — do NOT touch text nodes */
+[data-testid="stExpander"] summary svg path,
+[data-testid="stExpander"] summary svg polyline,
+[data-testid="stExpander"] summary svg line {
+  stroke : var(--accent) !important;
+}
+/* Hide any rogue SVG title/desc text that Streamlit leaks */
+[data-testid="stExpander"] summary svg title,
+[data-testid="stExpander"] summary svg desc,
+[data-testid="stExpander"] summary svg text {
+  display: none !important;
+}
+/* Hide the internal Streamlit expander icon label text node */
+[data-testid="stExpander"] [data-testid="stExpanderToggleIcon"] {
+  font-size : 0 !important;
+  overflow  : hidden !important;
+}
+[data-testid="stExpander"] [data-testid="stExpanderToggleIcon"] svg {
+  font-size: initial !important;
+}
 [data-testid="stExpander"] > div > div {
   background: var(--bg-surface) !important;
   border-top : 1px solid var(--border-faint) !important;
@@ -563,7 +639,7 @@ textarea::placeholder { color: var(--text-faint) !important; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   ALERTS
+   ALERTS — use robust selectors
 ───────────────────────────────────────────────────────────────────── */
 [data-testid="stAlert"] {
   border-radius: var(--r-md) !important;
@@ -571,10 +647,40 @@ textarea::placeholder { color: var(--text-faint) !important; }
   font-family  : var(--font-sans) !important;
   font-size    : 0.84rem !important;
 }
-[data-testid="stAlert"][kind="info"]    { background:var(--slate-50) !important;border-color:var(--slate-200) !important;color:var(--slate-700) !important; }
-[data-testid="stAlert"][kind="success"] { background:var(--sage-50)  !important;border-color:var(--sage-200)  !important;color:var(--sage-700)  !important; }
-[data-testid="stAlert"][kind="warning"] { background:var(--gold-100) !important;border-color:var(--border-gold) !important;color:var(--gold-700) !important; }
-[data-testid="stAlert"][kind="error"]   { background:var(--rose-50)  !important;border-color:var(--rose-200)  !important;color:var(--rose-700)  !important; }
+/* Info */
+[data-testid="stAlert"][data-baseweb="notification"][kind="info"],
+div[data-testid="stAlert"]:has(svg[data-testid="stAlertIconInfo"]) {
+  background  : var(--slate-50) !important;
+  border-color: var(--slate-200) !important;
+  color       : var(--slate-700) !important;
+}
+/* Success */
+[data-testid="stAlert"][data-baseweb="notification"][kind="success"],
+div[data-testid="stAlert"]:has(svg[data-testid="stAlertIconSuccess"]) {
+  background  : var(--sage-50) !important;
+  border-color: var(--sage-200) !important;
+  color       : var(--sage-700) !important;
+}
+/* Warning */
+[data-testid="stAlert"][data-baseweb="notification"][kind="warning"],
+div[data-testid="stAlert"]:has(svg[data-testid="stAlertIconWarning"]) {
+  background  : var(--gold-100) !important;
+  border-color: var(--border-gold) !important;
+  color       : var(--gold-700) !important;
+}
+/* Error */
+[data-testid="stAlert"][data-baseweb="notification"][kind="error"],
+div[data-testid="stAlert"]:has(svg[data-testid="stAlertIconError"]) {
+  background  : var(--rose-50) !important;
+  border-color: var(--rose-200) !important;
+  color       : var(--rose-700) !important;
+}
+/* Alert text always inherit color */
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] span,
+[data-testid="stAlert"] div {
+  font-family: var(--font-sans) !important;
+}
 
 /* Captions */
 [data-testid="stCaptionContainer"] p,.stCaption,small {
@@ -679,9 +785,10 @@ textarea::placeholder { color: var(--text-faint) !important; }
   border-bottom : 1px solid var(--border-base);
   margin-bottom : var(--s12);
   display       : grid;
-  grid-template-columns: 1fr 320px;
-  gap           : var(--s8);
-  align-items   : end;
+  grid-template-columns: 1fr 300px;
+  gap           : var(--s10);
+  align-items   : center;
+  overflow      : hidden;
 }
 .hero-left {}
 .hero-eyebrow {
@@ -1177,6 +1284,100 @@ textarea::placeholder { color: var(--text-faint) !important; }
   to   { opacity:1; transform:translateY(0); }
 }
 .fade-in { animation: fadeUp 0.4s ease both; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   GLOBAL SPACING & MARGIN FIXES
+───────────────────────────────────────────────────────────────────── */
+/* Prevent Streamlit's default p margin from breaking card layouts */
+.stMarkdown p { margin-bottom: 0 !important; }
+.stMarkdown p + p { margin-top: 0.5em !important; }
+
+/* Column gap tightening for company buttons */
+[data-testid="column"] {
+  padding-left : 4px !important;
+  padding-right: 4px !important;
+}
+
+/* Ensure stButton wrapper doesn't add extra height */
+.stButton { margin: 0 !important; }
+.stButton > div { width: 100% !important; }
+
+/* Fix form inner spacing - remove Streamlit's default form border */
+[data-testid="stForm"],
+[data-testid="stForm"] > div {
+  border    : none !important;
+  padding   : 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+/* Remove the blue bottom border Streamlit adds to form blocks */
+[data-testid="stForm"] > div:last-child,
+.stForm > div {
+  border-bottom: none !important;
+  border       : none !important;
+}
+
+/* Tabs content area */
+[data-testid="stTabsContent"] {
+  padding-top: var(--s5) !important;
+}
+
+/* Prevent sec-head p tags from getting Streamlit margin */
+.sec-head-title, .sec-head-sub { margin: 0 !important; }
+.sec-head-title { margin-bottom: 6px !important; }
+
+/* Masthead top breathing room */
+.masthead { margin-top: 0.5rem; }
+
+/* Expander summary layout — prevent icon text bleed */
+[data-testid="stExpander"] summary > div {
+  display    : flex !important;
+  align-items: center !important;
+  gap        : 8px !important;
+  width      : 100% !important;
+}
+[data-testid="stExpander"] summary > div > div:first-child {
+  flex      : 1 !important;
+  min-width : 0 !important;
+  font-size : 0.875rem !important;
+  font-weight: 500 !important;
+  color     : var(--text-body) !important;
+}
+/* The toggle icon wrapper - isolate it */
+[data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
+[data-testid="stExpander"] summary .streamlit-expanderHeader svg {
+  flex-shrink: 0 !important;
+  color      : var(--accent) !important;
+  font-size  : 0 !important;
+  line-height: 0 !important;
+}
+[data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"] svg,
+[data-testid="stExpander"] summary .streamlit-expanderHeader svg {
+  font-size  : initial !important;
+  line-height: initial !important;
+  display    : block !important;
+  width      : 16px !important;
+  height     : 16px !important;
+}
+
+/* Fix any raw text that bleeds next to SVG in expanders */
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span:not([class]) {
+  font-size  : 0.875rem !important;
+  font-weight: 500 !important;
+  color      : var(--text-body) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Multiselect label in sidebar needs spacing */
+[data-testid="stSidebar"] [data-testid="stMultiSelect"] {
+  margin-bottom: var(--s4) !important;
+}
+
+/* Remove excess vertical space between stMarkdown blocks */
+.element-container { margin-bottom: 0 !important; }
+.stMarkdown { margin-bottom: 0 !important; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1334,6 +1535,8 @@ with c3:
 with c4:
     st.metric("Cities Covered",    f"{df['location'].nunique()}")
 
+st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════
 #  § 01  MARKET OVERVIEW
@@ -1346,7 +1549,7 @@ st.markdown("""
   </div>
 </div>
 <div class="sec-head">
-  <p class="sec-head-title">Industry & Location Distribution</p>
+  <p class="sec-head-title">Industry &amp; Location Distribution</p>
   <p class="sec-head-sub">How active job demand spreads across sectors and geographies</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1441,7 +1644,7 @@ st.markdown("""
   </div>
 </div>
 <div class="sec-head">
-  <p class="sec-head-title">Education & Experience Demand</p>
+  <p class="sec-head-title">Education &amp; Experience Demand</p>
   <p class="sec-head-sub">What qualifications and seniority levels the market is asking for</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1506,15 +1709,29 @@ if "selected_company" not in st.session_state:
 top_cos = get_top_companies_list(df, n=8)
 st.markdown("""
 <p style="font-family:'Outfit',sans-serif;font-size:0.65rem;font-weight:700;
-          color:#a8a398;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">
+          color:#a8a398;text-transform:uppercase;letter-spacing:0.14em;
+          margin-bottom:10px;margin-top:4px;">
   Quick select — top 8</p>
 """, unsafe_allow_html=True)
 
-btn_cols = st.columns(len(top_cos))
-for i, co in enumerate(top_cos):
-    with btn_cols[i]:
-        if st.button(co, key=f"qbtn_{i}", use_container_width=True):
+# Render as 2 rows × 4 columns to avoid text wrapping in cramped 8-col layout
+row1_cos = top_cos[:4]
+row2_cos = top_cos[4:8]
+
+row1_cols = st.columns(4)
+for i, co in enumerate(row1_cos):
+    with row1_cols[i]:
+        label = co if len(co) <= 18 else co[:16] + "…"
+        if st.button(label, key=f"qbtn_{i}", use_container_width=True, help=co):
             st.session_state.selected_company = co
+
+if row2_cos:
+    row2_cols = st.columns(4)
+    for i, co in enumerate(row2_cos):
+        with row2_cols[i]:
+            label = co if len(co) <= 18 else co[:16] + "…"
+            if st.button(label, key=f"qbtn_{i+4}", use_container_width=True, help=co):
+                st.session_state.selected_company = co
 
 all_companies = sorted(df["company"].dropna().unique().tolist())
 sel_dd = st.selectbox("Search any company",
@@ -1887,7 +2104,7 @@ with st.form("salary_form"):
         in_list = sorted(raw_df["industry"].dropna().unique().tolist())
         sel_ind = st.selectbox("Industry",   ["— Select an industry —"]+in_list, index=0)
 
-    st.markdown('<div class="form-sep">Location & Experience</div>', unsafe_allow_html=True)
+    st.markdown('<div class="form-sep">Location &amp; Experience</div>', unsafe_allow_html=True)
     fl1, fl2, fl3 = st.columns(3)
     with fl1:
         lo_list = sorted(raw_df["location"].dropna().unique().tolist())
@@ -2078,7 +2295,7 @@ st.markdown(f"""
   </div>
   <div class="footer-meta">
     Live data from BDJobs.com · Auto-updated daily ·
-    Built with Streamlit & Python · {datetime.now().year}
+    Built with Streamlit &amp; Python · {datetime.now().year}
   </div>
 </div>
 """, unsafe_allow_html=True)
