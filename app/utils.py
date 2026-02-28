@@ -28,7 +28,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
 
-SHEET_NAME = "BDJobs Data"
+SHEET_NAME   = "BDJobs Data"
 CSV_FALLBACK = os.path.join(os.path.dirname(__file__), "data", "job_postings.csv")
 
 
@@ -64,10 +64,10 @@ def load_data() -> pd.DataFrame:
 
     if creds:
         try:
-            client = gspread.authorize(creds)
+            client      = gspread.authorize(creds)
             spreadsheet = client.open(SHEET_NAME)
-            worksheet = spreadsheet.sheet1
-            data = worksheet.get_all_records()
+            worksheet   = spreadsheet.sheet1
+            data        = worksheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
                 df = _clean_dataframe(df)
@@ -134,7 +134,7 @@ def clean_skills(series: pd.Series) -> List[str]:
 
 def skill_frequency(skills: List[str], top_n: int = 15) -> pd.DataFrame:
     """Return a DataFrame of the top_n most frequent skills."""
-    counter = Counter(skills)
+    counter    = Counter(skills)
     most_common = counter.most_common(top_n)
     df = pd.DataFrame(most_common, columns=["Skill", "Frequency"])
     return df.sort_values("Frequency", ascending=False).reset_index(drop=True)
@@ -222,7 +222,7 @@ def most_common_value(series: pd.Series) -> str:
 
 
 def get_jobs_today(df: pd.DataFrame) -> int:
-    """Count jobs scraped today (based on date_scraped column)."""
+    """Count jobs scraped today."""
     if "date_scraped" not in df.columns:
         return 0
     today = pd.Timestamp.now().normalize()
@@ -241,7 +241,7 @@ def get_jobs_yesterday(df: pd.DataFrame) -> int:
 
 
 def get_delta_jobs(df: pd.DataFrame) -> int:
-    """Return today's job count minus yesterday's (can be negative)."""
+    """Return today's job count minus yesterday's."""
     return get_jobs_today(df) - get_jobs_yesterday(df)
 
 
@@ -249,8 +249,8 @@ def get_new_companies_today(df: pd.DataFrame) -> int:
     """Count companies that posted a job for the first time today."""
     if "date_scraped" not in df.columns:
         return 0
-    dates = pd.to_datetime(df["date_scraped"], errors="coerce")
-    today = pd.Timestamp.now().normalize()
+    dates           = pd.to_datetime(df["date_scraped"], errors="coerce")
+    today           = pd.Timestamp.now().normalize()
     today_companies = set(df.loc[dates >= today, "company"].dropna().unique())
     prev_companies  = set(df.loc[dates < today,  "company"].dropna().unique())
     return len(today_companies - prev_companies)
@@ -259,23 +259,13 @@ def get_new_companies_today(df: pd.DataFrame) -> int:
 def get_data_freshness(df: pd.DataFrame) -> dict:
     """Return a dict describing how fresh the data is."""
     if "date_scraped" not in df.columns or df.empty:
-        return {
-            "last_updated": "Unknown",
-            "hours_ago":    None,
-            "status":       "unknown",
-            "color":        "gray",
-            "emoji":        "⚪",
-        }
+        return {"last_updated": "Unknown", "hours_ago": None,
+                "status": "unknown", "color": "gray", "emoji": "⚪"}
 
     dates = pd.to_datetime(df["date_scraped"], errors="coerce").dropna()
     if dates.empty:
-        return {
-            "last_updated": "Unknown",
-            "hours_ago":    None,
-            "status":       "unknown",
-            "color":        "gray",
-            "emoji":        "⚪",
-        }
+        return {"last_updated": "Unknown", "hours_ago": None,
+                "status": "unknown", "color": "gray", "emoji": "⚪"}
 
     latest    = dates.max()
     now       = pd.Timestamp.now()
@@ -314,7 +304,7 @@ def get_data_freshness(df: pd.DataFrame) -> dict:
 
 def to_csv_bytes(df: pd.DataFrame) -> bytes:
     """Convert DataFrame to UTF-8 CSV bytes for st.download_button."""
-    export_df = df.copy()
+    export_df  = df.copy()
     rename_map = {
         "job_title":    "Job Title",
         "company":      "Company",
@@ -339,7 +329,7 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     from reportlab.lib.units import cm
     from reportlab.lib import colors
     from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
     )
 
     buffer = io.BytesIO()
@@ -355,17 +345,14 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     MUTED = colors.HexColor("#64748b")
     WHITE = colors.white
 
-    styles = getSampleStyleSheet()
-
+    styles      = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "Title", parent=styles["Heading1"],
-        fontSize=22, textColor=BLUE,
-        spaceAfter=4, fontName="Helvetica-Bold",
+        fontSize=22, textColor=BLUE, spaceAfter=4, fontName="Helvetica-Bold",
     )
     subtitle_style = ParagraphStyle(
         "Subtitle", parent=styles["Normal"],
-        fontSize=10, textColor=MUTED,
-        spaceAfter=2, fontName="Helvetica",
+        fontSize=10, textColor=MUTED, spaceAfter=2, fontName="Helvetica",
     )
     section_style = ParagraphStyle(
         "Section", parent=styles["Heading2"],
@@ -374,8 +361,7 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     )
     body_style = ParagraphStyle(
         "Body", parent=styles["Normal"],
-        fontSize=9.5, textColor=DARK,
-        leading=14, fontName="Helvetica",
+        fontSize=9.5, textColor=DARK, leading=14, fontName="Helvetica",
     )
     small_style = ParagraphStyle(
         "Small", parent=styles["Normal"],
@@ -399,9 +385,9 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
 
     def ranking_table(title_col, count_col, data_rows):
         header = [
-            Paragraph("<b>#</b>",              body_style),
-            Paragraph(f"<b>{title_col}</b>",   body_style),
-            Paragraph(f"<b>{count_col}</b>",   body_style),
+            Paragraph("<b>#</b>",             body_style),
+            Paragraph(f"<b>{title_col}</b>",  body_style),
+            Paragraph(f"<b>{count_col}</b>",  body_style),
         ]
         rows = [header] + [
             [Paragraph(str(i+1), body_style),
@@ -424,15 +410,15 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
         ]))
         return t
 
-    total_jobs       = len(df)
-    unique_companies = df["company"].nunique()
-    unique_industries= df["industry"].nunique()
-    unique_locations = df["location"].nunique()
-    top_companies    = df["company"].value_counts().head(10)
-    top_industries   = df["industry"].value_counts().head(10)
-    top_locations    = df["location"].value_counts().head(10)
-    top_roles        = df["job_title"].value_counts().head(10)
-    generated_at     = datetime.now().strftime("%d %B %Y, %I:%M %p")
+    total_jobs        = len(df)
+    unique_companies  = df["company"].nunique()
+    unique_industries = df["industry"].nunique()
+    unique_locations  = df["location"].nunique()
+    top_companies     = df["company"].value_counts().head(10)
+    top_industries    = df["industry"].value_counts().head(10)
+    top_locations     = df["location"].value_counts().head(10)
+    top_roles         = df["job_title"].value_counts().head(10)
+    generated_at      = datetime.now().strftime("%d %B %Y, %I:%M %p")
 
     f_ind = ", ".join(active_filters.get("industries", [])) or "All"
     f_rol = ", ".join(active_filters.get("roles",      [])) or "All"
@@ -447,7 +433,9 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     story.append(Spacer(1, 0.4*cm))
 
     story.append(Paragraph("Active Filters", section_style))
-    story.append(kv_table([("Industry", f_ind), ("Job Role", f_rol), ("Location", f_loc)]))
+    story.append(kv_table([
+        ("Industry", f_ind), ("Job Role", f_rol), ("Location", f_loc),
+    ]))
 
     story.append(Paragraph("Key Metrics", section_style))
     story.append(kv_table([
@@ -476,18 +464,19 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     story.append(Paragraph("Recent Job Listings (first 30)", section_style))
     story.append(Paragraph(
         "Showing up to 30 most recent postings from the filtered dataset.",
-        small_style
+        small_style,
     ))
     story.append(Spacer(1, 0.2*cm))
 
-    listing_cols = [c for c in ["job_title", "company", "location", "industry"] if c in df.columns]
-    listing_df   = df[listing_cols].head(30)
-    header_labels= {"job_title": "Job Title", "company": "Company",
-                    "location": "Location",   "industry": "Industry"}
-    col_widths   = {"job_title": 5.5*cm, "company": 4.5*cm,
-                    "location":  3.0*cm, "industry": 3.0*cm}
+    listing_cols  = [c for c in ["job_title","company","location","industry"] if c in df.columns]
+    listing_df    = df[listing_cols].head(30)
+    header_labels = {"job_title":"Job Title","company":"Company",
+                     "location":"Location","industry":"Industry"}
+    col_widths    = {"job_title":5.5*cm,"company":4.5*cm,
+                     "location":3.0*cm,"industry":3.0*cm}
 
-    tbl_data = [[Paragraph(f"<b>{header_labels.get(c,c)}</b>", body_style) for c in listing_cols]]
+    tbl_data = [[Paragraph(f"<b>{header_labels.get(c,c)}</b>", body_style)
+                 for c in listing_cols]]
     for _, row in listing_df.iterrows():
         tbl_data.append([
             Paragraph(str(row.get(c,""))[:60], body_style) for c in listing_cols
@@ -515,7 +504,8 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph(
         "JobSeekAI · Live data from BDJobs.com · Auto-updated daily · "
-        "Built with Streamlit & Python", small_style,
+        "Built with Streamlit & Python",
+        small_style,
     ))
 
     doc.build(story)
@@ -524,33 +514,27 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# NEW: Education & Experience Analytics Helpers
+# Education & Experience Analytics Helpers
 # ---------------------------------------------------------------------------
 
-# Degree keywords to look for — ordered from most specific to least,
-# so "MBA" is caught before "BA", "BSc" before "Sc" etc.
 DEGREE_PATTERNS = [
-    (r"\bphd\b|\bdoctor(?:ate)?\b",                    "PhD / Doctorate"),
-    (r"\bmba\b",                                         "MBA"),
-    (r"\bm\.?sc\b|\bmasters?\b|\bm\.?s\b",              "MSc / Masters"),
-    (r"\bm\.?a\b(?!nagement)",                           "MA"),
-    (r"\bb\.?sc\b|\bb\.?s\b",                            "BSc / BS"),
-    (r"\bb\.?ba\b",                                      "BBA"),
-    (r"\bb\.?a\b(?!nk)",                                 "BA"),
-    (r"\bb\.?eng\b|\bb\.?tech\b",                        "B.Eng / B.Tech"),
-    (r"\bllb\b|\blaw\b",                                 "LLB / Law"),
-    (r"\bmbbs\b|\bmd\b(?!\s+degree)",                    "MBBS / MD"),
-    (r"\bdiploma\b",                                     "Diploma"),
-    (r"\bhsc\b|\bintermediate\b|\ba[\s-]?levels?\b",     "HSC / A-Level"),
+    (r"\bphd\b|\bdoctor(?:ate)?\b",                     "PhD / Doctorate"),
+    (r"\bmba\b",                                          "MBA"),
+    (r"\bm\.?sc\b|\bmasters?\b|\bm\.?s\b",               "MSc / Masters"),
+    (r"\bm\.?a\b(?!nagement)",                            "MA"),
+    (r"\bb\.?sc\b|\bb\.?s\b",                             "BSc / BS"),
+    (r"\bb\.?ba\b",                                       "BBA"),
+    (r"\bb\.?a\b(?!nk)",                                  "BA"),
+    (r"\bb\.?eng\b|\bb\.?tech\b",                         "B.Eng / B.Tech"),
+    (r"\bllb\b|\blaw\b",                                  "LLB / Law"),
+    (r"\bmbbs\b|\bmd\b(?!\s+degree)",                     "MBBS / MD"),
+    (r"\bdiploma\b",                                      "Diploma"),
+    (r"\bhsc\b|\bintermediate\b|\ba[\s-]?levels?\b",      "HSC / A-Level"),
     (r"\bssc\b|\bo[\s-]?levels?\b|\bmatric(?:ulation)?\b","SSC / O-Level"),
 ]
 
 
 def extract_degrees(series: pd.Series) -> pd.Series:
-    """
-    Parse a skills/education text column and return a Series of
-    degree labels (one per row, 'Not Specified' if none found).
-    """
     results = []
     for text in series.fillna("").astype(str):
         text_lower = text.lower()
@@ -564,14 +548,9 @@ def extract_degrees(series: pd.Series) -> pd.Series:
 
 
 def get_degree_counts(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Return a DataFrame with degree label counts, excluding 'Not Specified'.
-    Columns: Degree, Count
-    """
     col = "skills" if "skills" in df.columns else None
     if col is None:
         return pd.DataFrame(columns=["Degree", "Count"])
-
     degrees = extract_degrees(df[col])
     counts  = (
         degrees[degrees != "Not Specified"]
@@ -582,22 +561,15 @@ def get_degree_counts(df: pd.DataFrame) -> pd.DataFrame:
     return counts
 
 
-# Experience level bucketing
-# Looks for patterns like "2 years", "3-5 years", "5+ years" in the skills text
-_EXP_REGEX = re.compile(
-    r"(\d+)\s*(?:\-\s*\d+)?\s*\+?\s*year",
-    re.IGNORECASE,
-)
+_EXP_REGEX = re.compile(r"(\d+)\s*(?:\-\s*\d+)?\s*\+?\s*year", re.IGNORECASE)
 
 
 def _extract_exp_years(text: str) -> float | None:
-    """Pull the first numeric year value from a free-text string."""
     m = _EXP_REGEX.search(str(text))
     return float(m.group(1)) if m else None
 
 
 def bucket_experience(years: float | None) -> str:
-    """Map a raw year count to Entry / Mid / Senior / Not Specified."""
     if years is None:
         return "Not Specified"
     if years <= 2:
@@ -608,14 +580,9 @@ def bucket_experience(years: float | None) -> str:
 
 
 def get_experience_level_counts(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Return a DataFrame with experience-level bucket counts.
-    Columns: Level, Count
-    """
     col = "skills" if "skills" in df.columns else None
     if col is None:
         return pd.DataFrame(columns=["Level", "Count"])
-
     years   = df[col].apply(_extract_exp_years)
     buckets = years.apply(bucket_experience)
     counts  = (
@@ -632,26 +599,16 @@ def get_experience_level_counts(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_industry_education_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build a cross-tab: rows = top industries, columns = degree levels.
-    Values = job count. Used for the heatmap table.
-    """
     if "skills" not in df.columns or "industry" not in df.columns:
         return pd.DataFrame()
-
     tmp = df.copy()
     tmp["degree"] = extract_degrees(tmp["skills"])
     tmp = tmp[tmp["degree"] != "Not Specified"]
-
     if tmp.empty:
         return pd.DataFrame()
-
-    # Keep top 8 industries and top 6 degrees for readability
     top_industries = tmp["industry"].value_counts().head(8).index.tolist()
     top_degrees    = tmp["degree"].value_counts().head(6).index.tolist()
-
     tmp = tmp[tmp["industry"].isin(top_industries) & tmp["degree"].isin(top_degrees)]
-
     matrix = (
         tmp.groupby(["industry", "degree"])
         .size()
@@ -659,3 +616,126 @@ def get_industry_education_matrix(df: pd.DataFrame) -> pd.DataFrame:
         .reindex(index=top_industries, columns=top_degrees, fill_value=0)
     )
     return matrix
+
+
+# ---------------------------------------------------------------------------
+# NEW: Company Intelligence Helpers
+# ---------------------------------------------------------------------------
+
+
+def get_company_intel(company_name: str, df: pd.DataFrame) -> dict:
+    """
+    Build a full intelligence profile for a single company.
+
+    Returns a dict with:
+        total_openings   : int
+        roles            : list[str]   all unique job titles
+        locations        : list[str]   all unique locations
+        industries       : list[str]   all unique industries
+        top_role         : str         most common role
+        top_location     : str         most common location
+        trend            : str         "up" | "down" | "stable" | "unknown"
+        trend_delta      : int         change in postings vs previous period
+        recent_count     : int         jobs posted in last 7 days
+        prev_count       : int         jobs posted in the 7 days before that
+        role_breakdown   : pd.DataFrame  columns: Role, Count
+        location_breakdown: pd.DataFrame columns: Location, Count
+        exp_breakdown    : pd.DataFrame  columns: Level, Count
+        all_jobs         : pd.DataFrame  all rows for this company
+    """
+    if df.empty or company_name not in df["company"].values:
+        return {"error": f"No data found for '{company_name}'."}
+
+    co_df = df[df["company"] == company_name].copy()
+
+    # ── Basic counts ───────────────────────────────────────────────────────
+    total_openings = len(co_df)
+    roles          = co_df["job_title"].dropna().unique().tolist()
+    locations      = co_df["location"].dropna().unique().tolist()
+    industries     = co_df["industry"].dropna().unique().tolist()
+    top_role       = co_df["job_title"].mode().iloc[0] if not co_df["job_title"].mode().empty else "N/A"
+    top_location   = co_df["location"].mode().iloc[0]  if not co_df["location"].mode().empty  else "N/A"
+
+    # ── Trend: compare last 7 days vs prior 7 days ─────────────────────────
+    trend = "unknown"
+    trend_delta  = 0
+    recent_count = 0
+    prev_count   = 0
+
+    if "date_scraped" in co_df.columns:
+        dates = pd.to_datetime(co_df["date_scraped"], errors="coerce")
+        now   = pd.Timestamp.now()
+        week1_start = now - pd.Timedelta(days=7)
+        week2_start = now - pd.Timedelta(days=14)
+
+        recent_count = int((dates >= week1_start).sum())
+        prev_count   = int(((dates >= week2_start) & (dates < week1_start)).sum())
+
+        if prev_count == 0 and recent_count > 0:
+            trend       = "up"
+            trend_delta = recent_count
+        elif prev_count == 0 and recent_count == 0:
+            trend = "unknown"
+        elif recent_count > prev_count:
+            trend       = "up"
+            trend_delta = recent_count - prev_count
+        elif recent_count < prev_count:
+            trend       = "down"
+            trend_delta = prev_count - recent_count
+        else:
+            trend = "stable"
+
+    # ── Breakdowns ─────────────────────────────────────────────────────────
+    role_breakdown = (
+        co_df["job_title"]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"job_title": "Role", "count": "Count"})
+    )
+    # handle both pandas naming styles
+    role_breakdown.columns = ["Role", "Count"]
+
+    location_breakdown = (
+        co_df["location"]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"location": "Location", "count": "Count"})
+    )
+    location_breakdown.columns = ["Location", "Count"]
+
+    # Experience breakdown using existing helper
+    exp_breakdown = get_experience_level_counts(co_df)
+
+    # Clean jobs table for display
+    display_cols = ["job_title", "location", "industry"]
+    if "date_scraped" in co_df.columns:
+        display_cols.append("date_scraped")
+    all_jobs = co_df[display_cols].rename(columns={
+        "job_title":    "Job Title",
+        "location":     "Location",
+        "industry":     "Industry",
+        "date_scraped": "Posted",
+    })
+
+    return {
+        "total_openings":    total_openings,
+        "roles":             roles,
+        "locations":         locations,
+        "industries":        industries,
+        "top_role":          top_role,
+        "top_location":      top_location,
+        "trend":             trend,
+        "trend_delta":       trend_delta,
+        "recent_count":      recent_count,
+        "prev_count":        prev_count,
+        "role_breakdown":    role_breakdown,
+        "location_breakdown":location_breakdown,
+        "exp_breakdown":     exp_breakdown,
+        "all_jobs":          all_jobs,
+        "error":             None,
+    }
+
+
+def get_top_companies_list(df: pd.DataFrame, n: int = 10) -> List[str]:
+    """Return the top n companies by job count."""
+    return df["company"].value_counts().head(n).index.tolist()
