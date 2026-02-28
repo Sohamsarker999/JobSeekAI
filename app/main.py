@@ -38,6 +38,9 @@ from utils import (  # noqa: E402
     get_data_freshness,
     to_csv_bytes,
     to_pdf_bytes,
+    get_degree_counts,
+    get_experience_level_counts,
+    get_industry_education_matrix,
 )
 from visualizations import (  # noqa: E402
     plot_industry_distribution,
@@ -45,6 +48,9 @@ from visualizations import (  # noqa: E402
     plot_location_distribution,
     plot_posting_trend,
     plot_experience_distribution,
+    plot_degree_demand,
+    plot_experience_levels,
+    plot_industry_education_heatmap,
 )
 
 # ---------------------------------------------------------------------------
@@ -53,7 +59,6 @@ from visualizations import (  # noqa: E402
 st.markdown(
     """
     <style>
-    /* ── Metric cards ─────────────────────────────────────────────────── */
     [data-testid="stMetric"] {
         background    : #f8fafc;
         border        : 1px solid #e2e8f0;
@@ -76,8 +81,6 @@ st.markdown(
         font-weight : 700;
         color       : #1e293b;
     }
-
-    /* ── Hero banner ──────────────────────────────────────────────────── */
     .hero-banner {
         background    : linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
         border-radius : 14px;
@@ -91,13 +94,7 @@ st.markdown(
         margin      : 0 0 8px 0;
         line-height : 1.2;
     }
-    .hero-banner p {
-        font-size : 1.05rem;
-        opacity   : 0.88;
-        margin    : 0;
-    }
-
-    /* ── Freshness badge ──────────────────────────────────────────────── */
+    .hero-banner p { font-size: 1.05rem; opacity: 0.88; margin: 0; }
     .freshness-badge {
         display       : inline-flex;
         align-items   : center;
@@ -108,19 +105,10 @@ st.markdown(
         font-weight   : 600;
         margin-top    : 14px;
     }
-    .badge-fresh   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-    .badge-stale   { background: #fef9c3; color: #a16207; border: 1px solid #fde047; }
-    .badge-old     { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-    .badge-unknown { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
-
-    /* ── Export section ───────────────────────────────────────────────── */
-    .export-box {
-        background    : #f8fafc;
-        border        : 1px solid #e2e8f0;
-        border-radius : 12px;
-        padding       : 24px 28px;
-    }
-
+    .badge-fresh   { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+    .badge-stale   { background:#fef9c3; color:#a16207; border:1px solid #fde047; }
+    .badge-old     { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+    .badge-unknown { background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; }
     hr { margin: 2rem 0; }
     </style>
     """,
@@ -147,32 +135,24 @@ with st.sidebar:
     st.title("JobSeekAI")
     st.caption("Bangladesh Job Market Intelligence")
     st.markdown("---")
-
     st.subheader("🔎 Filters")
 
     options = get_filter_options(raw_df)
 
     sel_industries = st.multiselect(
-        "Industry",
-        options=options["industry"],
-        default=[],
+        "Industry", options=options["industry"], default=[],
         help="Leave empty to include all industries.",
     )
     sel_roles = st.multiselect(
-        "Job Role",
-        options=options["job_title"],
-        default=[],
+        "Job Role", options=options["job_title"], default=[],
         help="Leave empty to include all roles.",
     )
     sel_locations = st.multiselect(
-        "Location",
-        options=options["location"],
-        default=[],
+        "Location", options=options["location"], default=[],
         help="Leave empty to include all locations.",
     )
 
     st.markdown("---")
-
     if st.button("🔄 Reset Filters", use_container_width=True):
         st.session_state.clear()
         st.rerun()
@@ -198,13 +178,9 @@ st.markdown(
     f"""
     <div class="hero-banner">
         <h1>📊 JobSeekAI — Bangladesh Job Market</h1>
-        <p>
-            Live analytics on job demand, hiring trends, and AI-powered
-            market intelligence — scraped daily from BDJobs.com
-        </p>
-        <div class="freshness-badge {badge_class}">
-            {badge_text}
-        </div>
+        <p>Live analytics on job demand, hiring trends, and AI-powered
+        market intelligence — scraped daily from BDJobs.com</p>
+        <div class="freshness-badge {badge_class}">{badge_text}</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -227,25 +203,17 @@ jobs_today    = get_jobs_today(raw_df)
 new_cos_today = get_new_companies_today(raw_df)
 
 col1, col2, col3, col4 = st.columns(4)
-
 with col1:
-    st.metric(
-        label       = "📋 Total Postings",
-        value       = f"{len(df):,}",
-        delta       = f"+{jobs_today} today" if jobs_today > 0 else "No new jobs today",
-        delta_color = "normal" if jobs_today > 0 else "off",
-    )
+    st.metric("📋 Total Postings",  f"{len(df):,}",
+              delta=f"+{jobs_today} today" if jobs_today > 0 else "No new jobs today",
+              delta_color="normal" if jobs_today > 0 else "off")
 with col2:
-    st.metric(
-        label       = "🏢 Unique Companies",
-        value       = f"{df['company'].nunique():,}",
-        delta       = f"+{new_cos_today} new today" if new_cos_today > 0 else None,
-        delta_color = "normal",
-    )
+    st.metric("🏢 Unique Companies", f"{df['company'].nunique():,}",
+              delta=f"+{new_cos_today} new today" if new_cos_today > 0 else None)
 with col3:
-    st.metric(label="🏭 Industries", value=f"{df['industry'].nunique()}")
+    st.metric("🏭 Industries", f"{df['industry'].nunique()}")
 with col4:
-    st.metric(label="📍 Locations",  value=f"{df['location'].nunique()}")
+    st.metric("📍 Locations",  f"{df['location'].nunique()}")
 
 if delta_jobs > 0:
     st.success(f"📈 **{delta_jobs} more jobs posted today** compared to yesterday.")
@@ -260,7 +228,6 @@ st.markdown("---")
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("🏢 Market Overview")
-
 col_left, col_right = st.columns(2)
 with col_left:
     st.pyplot(plot_industry_distribution(df))
@@ -280,26 +247,15 @@ st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 3  EXPERIENCE & POSTING TREND
+# § 3  POSTING TREND
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.header("🎓 Requirements Analysis")
-
-tab_exp, tab_trend = st.tabs(["Experience Requirements", "Posting Trend"])
-
-with tab_exp:
-    fig_exp = plot_experience_distribution(df)
-    if fig_exp:
-        st.pyplot(fig_exp)
-    else:
-        st.info("Experience data will appear as more jobs are scraped.")
-
-with tab_trend:
-    fig_trend = plot_posting_trend(df)
-    if fig_trend:
-        st.pyplot(fig_trend)
-    else:
-        st.info("Trend data will appear after multiple days of scraping.")
+st.header("📈 Posting Trend")
+fig_trend = plot_posting_trend(df)
+if fig_trend:
+    st.pyplot(fig_trend)
+else:
+    st.info("Trend data will appear after multiple days of scraping.")
 
 st.markdown("---")
 
@@ -326,12 +282,112 @@ st.dataframe(
     hide_index=True,
     height=400,
 )
+st.markdown("---")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# § 5  EDUCATION & EXPERIENCE ANALYTICS  ◄─ NEW FEATURE
+# ═══════════════════════════════════════════════════════════════════════════
+
+st.header("🎓 Education & Experience Analytics")
+st.markdown(
+    "Deep-dive into what qualifications and experience levels the "
+    "Bangladesh job market is demanding right now."
+)
+
+tab_deg, tab_exp, tab_heat = st.tabs([
+    "📜 Degree Demand",
+    "💼 Experience Levels",
+    "🔥 Industry × Education Heatmap",
+])
+
+# ── Tab 1: Degree Demand ───────────────────────────────────────────────────
+with tab_deg:
+    degree_counts = get_degree_counts(df)
+
+    if degree_counts.empty:
+        st.info(
+            "No degree data found in your current dataset. "
+            "This chart populates once the scraper collects education keywords "
+            "such as BSc, MBA, Diploma etc. in the skills/education field."
+        )
+    else:
+        fig_deg = plot_degree_demand(degree_counts)
+        if fig_deg:
+            st.pyplot(fig_deg)
+
+        # Summary insight below the chart
+        top_deg = degree_counts.iloc[0]
+        st.success(
+            f"🏆 **Most demanded qualification:** {top_deg['Degree']} "
+            f"— required in **{top_deg['Count']}** postings "
+            f"({top_deg['Count']/len(df)*100:.1f}% of filtered jobs)"
+        )
+
+        with st.expander("📊 View full degree breakdown table"):
+            st.dataframe(
+                degree_counts,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+# ── Tab 2: Experience Levels ───────────────────────────────────────────────
+with tab_exp:
+    exp_counts = get_experience_level_counts(df)
+
+    if exp_counts.empty or exp_counts["Count"].sum() == 0:
+        st.info(
+            "No experience-level data found yet. "
+            "This chart appears once the scraper collects postings "
+            "mentioning year requirements like '2 years', '5+ years' etc."
+        )
+    else:
+        fig_exp_lvl = plot_experience_levels(exp_counts)
+        if fig_exp_lvl:
+            st.pyplot(fig_exp_lvl)
+
+        # Insight callouts
+        total_with_exp = exp_counts["Count"].sum()
+        for _, row in exp_counts.iterrows():
+            pct = row["Count"] / total_with_exp * 100
+            if row["Level"].startswith("Entry"):
+                icon = "🟢"
+            elif row["Level"].startswith("Mid"):
+                icon = "🔵"
+            else:
+                icon = "🟣"
+            st.caption(f"{icon} **{row['Level']}** — {row['Count']} jobs ({pct:.1f}%)")
+
+        with st.expander("📊 View experience level table"):
+            st.dataframe(exp_counts, use_container_width=True, hide_index=True)
+
+# ── Tab 3: Industry × Education Heatmap ───────────────────────────────────
+with tab_heat:
+    matrix = get_industry_education_matrix(df)
+
+    if matrix.empty:
+        st.info(
+            "Not enough data to build the cross-analysis heatmap yet. "
+            "This appears once there are jobs with both industry tags "
+            "and recognised degree keywords."
+        )
+    else:
+        st.markdown(
+            "Each cell shows how many job postings in that industry "
+            "require a given education level. **Darker = more demand.**"
+        )
+        fig_heat = plot_industry_education_heatmap(matrix)
+        if fig_heat:
+            st.pyplot(fig_heat)
+
+        with st.expander("📊 View raw heatmap data"):
+            st.dataframe(matrix, use_container_width=True)
 
 st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 5  AI MARKET INTELLIGENCE
+# § 6  AI MARKET INTELLIGENCE
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("🤖 AI Market Intelligence")
@@ -355,7 +411,7 @@ st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 6  AI-POWERED JOB RECOMMENDATIONS
+# § 7  AI-POWERED JOB RECOMMENDATIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("🎯 AI-Powered Job Recommendations")
@@ -433,7 +489,7 @@ st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 7  EXPORT & DOWNLOAD  ◄─ NEW FEATURE
+# § 8  EXPORT & DOWNLOAD
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("📥 Export & Download")
@@ -442,57 +498,47 @@ st.markdown(
     "or generate a formatted **PDF market report** with KPIs, rankings, and job listings."
 )
 
-# Build active filters dict for the PDF report header
 active_filters = {
     "industries": sel_industries,
     "roles":      sel_roles,
     "locations":  sel_locations,
 }
-
-# Timestamp for filenames  e.g.  jobseekAI_2024-06-15.csv
 today_str = datetime.now().strftime("%Y-%m-%d")
 
 col_csv, col_pdf = st.columns(2)
 
-# ── CSV Download ────────────────────────────────────────────────────────────
 with col_csv:
     st.markdown("#### 📊 CSV Spreadsheet")
     st.markdown(
         f"Export all **{len(df):,} filtered job listings** to a spreadsheet. "
         "Open in Excel, Google Sheets, or any data tool."
     )
-    csv_bytes = to_csv_bytes(df)
     st.download_button(
-        label        = "⬇️ Download CSV",
-        data         = csv_bytes,
-        file_name    = f"jobseekAI_jobs_{today_str}.csv",
-        mime         = "text/csv",
+        label               = "⬇️ Download CSV",
+        data                = to_csv_bytes(df),
+        file_name           = f"jobseekAI_jobs_{today_str}.csv",
+        mime                = "text/csv",
         use_container_width = True,
     )
     st.caption(f"File will contain {len(df):,} rows · UTF-8 encoded")
 
-# ── PDF Download ────────────────────────────────────────────────────────────
 with col_pdf:
     st.markdown("#### 📄 PDF Market Report")
     st.markdown(
         "Generate a formatted report with key metrics, top companies, "
         "industries, locations, and job listings."
     )
-    if st.button(
-        "⬇️ Generate & Download PDF",
-        use_container_width=True,
-        key="pdf_btn",
-    ):
+    if st.button("⬇️ Generate & Download PDF", use_container_width=True, key="pdf_btn"):
         with st.spinner("Building your PDF report …"):
             try:
                 pdf_bytes = to_pdf_bytes(df, active_filters)
                 st.download_button(
-                    label     = "📄 Click here to save your PDF",
-                    data      = pdf_bytes,
-                    file_name = f"jobseekAI_report_{today_str}.pdf",
-                    mime      = "application/pdf",
+                    label               = "📄 Click here to save your PDF",
+                    data                = pdf_bytes,
+                    file_name           = f"jobseekAI_report_{today_str}.pdf",
+                    mime                = "application/pdf",
                     use_container_width = True,
-                    type      = "primary",
+                    type                = "primary",
                 )
                 st.success("✅ PDF ready! Click the button above to download.")
             except Exception as e:
@@ -500,7 +546,6 @@ with col_pdf:
                     f"⚠️ Could not generate PDF: {e}\n\n"
                     "Make sure `reportlab` is in your `requirements.txt`."
                 )
-
     st.caption("Includes KPIs · Top 10 rankings · First 30 job listings")
 
 
