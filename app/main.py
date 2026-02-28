@@ -24,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from ai_summary import generate_market_summary  # noqa: E402
+from ai_summary import generate_market_summary, generate_job_recommendations  # noqa: E402
 from utils import (  # noqa: E402
     apply_filters,
     get_filter_options,
@@ -53,6 +53,18 @@ st.markdown(
         padding: 12px 16px;
     }
     hr { margin: 2rem 0; }
+
+    /* Recommendation cards */
+    .rec-card {
+        background: #f0f7ff;
+        border-left: 4px solid #2563EB;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin-bottom: 10px;
+    }
+    .score-high  { color: #16a34a; font-weight: bold; font-size: 1.1rem; }
+    .score-mid   { color: #d97706; font-weight: bold; font-size: 1.1rem; }
+    .score-low   { color: #dc2626; font-weight: bold; font-size: 1.1rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -224,10 +236,10 @@ if "date_scraped" in df.columns:
 st.dataframe(
     df[display_cols].rename(
         columns={
-            "job_title": "Job Title",
-            "company": "Company",
-            "industry": "Industry",
-            "location": "Location",
+            "job_title":    "Job Title",
+            "company":      "Company",
+            "industry":     "Industry",
+            "location":     "Location",
             "date_scraped": "Posted",
         }
     ),
@@ -248,13 +260,11 @@ st.caption("Powered by Groq LLM — insights generated from your filtered data")
 
 if st.button("Generate Market Summary", type="primary", use_container_width=True):
     with st.spinner("Analysing market data with AI …"):
-        top_sk = top_skills_list(df, n=10)
+        top_sk   = top_skills_list(df, n=10)
         top_role = most_common_value(df["job_title"])
-        top_ind = most_common_value(df["industry"])
-
-        # Pass empty salary metrics since we don't have salary data
-        metrics = {"mean": None, "median": None, "min": None, "max": None, "count": 0}
-        summary = generate_market_summary(top_sk, metrics, top_role, top_ind)
+        top_ind  = most_common_value(df["industry"])
+        metrics  = {"mean": None, "median": None, "min": None, "max": None, "count": 0}
+        summary  = generate_market_summary(top_sk, metrics, top_role, top_ind)
 
     st.markdown(summary)
 else:
@@ -262,6 +272,98 @@ else:
         "Click **Generate Market Summary** to get an AI-powered executive "
         "brief based on the currently filtered data."
     )
+
+st.markdown("---")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# § 6  AI-POWERED JOB RECOMMENDATIONS  ◄─ NEW FEATURE
+# ═══════════════════════════════════════════════════════════════════════════
+
+st.header("🎯 AI-Powered Job Recommendations")
+st.markdown(
+    "Describe your **skills, experience, and background** below. "
+    "Our AI will scan today's job listings and surface your top matches — "
+    "complete with a match score and explanation."
+)
+
+with st.form("rec_form"):
+    user_profile = st.text_area(
+        label="Your Skills & Experience",
+        placeholder=(
+            "Example:\n"
+            "I have 2 years of experience in Python and data analysis. "
+            "I know Pandas, SQL, and Power BI. I hold a BSc in CSE "
+            "and am looking for a data or software role in Dhaka."
+        ),
+        height=160,
+    )
+
+    col_a, col_b = st.columns([3, 1])
+    with col_b:
+        top_n = st.selectbox("Show top", [3, 5, 7], index=1)
+
+    submitted = st.form_submit_button(
+        "🔍 Find My Best Matches", type="primary", use_container_width=True
+    )
+
+if submitted:
+    if not user_profile.strip():
+        st.warning("⚠️ Please enter your skills and experience before searching.")
+    else:
+        with st.spinner("AI is scanning job listings for you … (may take ~15 seconds)"):
+            recommendations = generate_job_recommendations(user_profile, df, top_n=top_n)
+
+        # ── Error state ───────────────────────────────────────────────────
+        if not recommendations:
+            st.error("No recommendations returned. Please try again.")
+
+        elif "error" in recommendations[0]:
+            st.error(recommendations[0]["error"])
+
+        # ── Success: render recommendation cards ──────────────────────────
+        else:
+            st.success(f"✅ Found your top **{len(recommendations)}** job matches!")
+            st.markdown("---")
+
+            for rec in recommendations:
+                score = rec["match_score"]
+
+                # Colour-code the score badge
+                if score >= 80:
+                    score_emoji = "🟢"
+                    score_label = "Strong Match"
+                elif score >= 60:
+                    score_emoji = "🟡"
+                    score_label = "Good Match"
+                else:
+                    score_emoji = "🔴"
+                    score_label = "Partial Match"
+
+                # Expandable card per match
+                with st.expander(
+                    f"{score_emoji}  #{rec['rank']}  —  **{rec['job_title']}** "
+                    f"@ {rec['company']}  |  Score: {score}/100  ({score_label})",
+                    expanded=(rec["rank"] == 1),   # auto-open the #1 match
+                ):
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("📍 Location", rec["location"])
+                    m2.metric("🏭 Industry",  rec["industry"])
+                    m3.metric("🎯 Match",     f"{score}/100")
+
+                    st.markdown(f"**🤖 Why this fits you:**  {rec['reason']}")
+
+                    if rec.get("experience") and rec["experience"] not in ("N/A", "nan", ""):
+                        st.caption(f"📋 Skills/Info: {rec['experience']}")
+
+                    if rec.get("deadline") and rec["deadline"] not in ("N/A", "nan", ""):
+                        st.caption(f"⏰ Deadline: {rec['deadline']}")
+
+            st.markdown("---")
+            st.caption(
+                "💡 **Tip:** Apply filters in the sidebar (industry, location) "
+                "before searching to narrow results to your preferred area."
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
