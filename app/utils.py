@@ -134,7 +134,7 @@ def clean_skills(series: pd.Series) -> List[str]:
 
 def skill_frequency(skills: List[str], top_n: int = 15) -> pd.DataFrame:
     """Return a DataFrame of the top_n most frequent skills."""
-    counter    = Counter(skills)
+    counter     = Counter(skills)
     most_common = counter.most_common(top_n)
     df = pd.DataFrame(most_common, columns=["Skill", "Frequency"])
     return df.sort_values("Frequency", ascending=False).reset_index(drop=True)
@@ -345,8 +345,8 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     MUTED = colors.HexColor("#64748b")
     WHITE = colors.white
 
-    styles      = getSampleStyleSheet()
-    title_style = ParagraphStyle(
+    styles        = getSampleStyleSheet()
+    title_style   = ParagraphStyle(
         "Title", parent=styles["Heading1"],
         fontSize=22, textColor=BLUE, spaceAfter=4, fontName="Helvetica-Bold",
     )
@@ -385,14 +385,14 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
 
     def ranking_table(title_col, count_col, data_rows):
         header = [
-            Paragraph("<b>#</b>",             body_style),
-            Paragraph(f"<b>{title_col}</b>",  body_style),
-            Paragraph(f"<b>{count_col}</b>",  body_style),
+            Paragraph("<b>#</b>",            body_style),
+            Paragraph(f"<b>{title_col}</b>", body_style),
+            Paragraph(f"<b>{count_col}</b>", body_style),
         ]
         rows = [header] + [
-            [Paragraph(str(i+1), body_style),
-             Paragraph(str(name), body_style),
-             Paragraph(str(count), body_style)]
+            [Paragraph(str(i+1),    body_style),
+             Paragraph(str(name),   body_style),
+             Paragraph(str(count),  body_style)]
             for i, (name, count) in enumerate(data_rows)
         ]
         t = Table(rows, colWidths=[1.2*cm, 10.5*cm, 4.3*cm])
@@ -468,7 +468,8 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
     ))
     story.append(Spacer(1, 0.2*cm))
 
-    listing_cols  = [c for c in ["job_title","company","location","industry"] if c in df.columns]
+    listing_cols  = [c for c in ["job_title","company","location","industry"]
+                     if c in df.columns]
     listing_df    = df[listing_cols].head(30)
     header_labels = {"job_title":"Job Title","company":"Company",
                      "location":"Location","industry":"Industry"}
@@ -479,12 +480,15 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
                  for c in listing_cols]]
     for _, row in listing_df.iterrows():
         tbl_data.append([
-            Paragraph(str(row.get(c,""))[:60], body_style) for c in listing_cols
+            Paragraph(str(row.get(c,""))[:60], body_style)
+            for c in listing_cols
         ])
 
-    tbl = Table(tbl_data,
-                colWidths=[col_widths.get(c, 4*cm) for c in listing_cols],
-                repeatRows=1)
+    tbl = Table(
+        tbl_data,
+        colWidths=[col_widths.get(c, 4*cm) for c in listing_cols],
+        repeatRows=1,
+    )
     tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), BLUE),
         ("TEXTCOLOR",     (0, 0), (-1, 0), WHITE),
@@ -518,19 +522,19 @@ def to_pdf_bytes(df: pd.DataFrame, active_filters: dict) -> bytes:
 # ---------------------------------------------------------------------------
 
 DEGREE_PATTERNS = [
-    (r"\bphd\b|\bdoctor(?:ate)?\b",                     "PhD / Doctorate"),
-    (r"\bmba\b",                                          "MBA"),
-    (r"\bm\.?sc\b|\bmasters?\b|\bm\.?s\b",               "MSc / Masters"),
-    (r"\bm\.?a\b(?!nagement)",                            "MA"),
-    (r"\bb\.?sc\b|\bb\.?s\b",                             "BSc / BS"),
-    (r"\bb\.?ba\b",                                       "BBA"),
-    (r"\bb\.?a\b(?!nk)",                                  "BA"),
-    (r"\bb\.?eng\b|\bb\.?tech\b",                         "B.Eng / B.Tech"),
-    (r"\bllb\b|\blaw\b",                                  "LLB / Law"),
-    (r"\bmbbs\b|\bmd\b(?!\s+degree)",                     "MBBS / MD"),
-    (r"\bdiploma\b",                                      "Diploma"),
-    (r"\bhsc\b|\bintermediate\b|\ba[\s-]?levels?\b",      "HSC / A-Level"),
-    (r"\bssc\b|\bo[\s-]?levels?\b|\bmatric(?:ulation)?\b","SSC / O-Level"),
+    (r"\bphd\b|\bdoctor(?:ate)?\b",                      "PhD / Doctorate"),
+    (r"\bmba\b",                                           "MBA"),
+    (r"\bm\.?sc\b|\bmasters?\b|\bm\.?s\b",                "MSc / Masters"),
+    (r"\bm\.?a\b(?!nagement)",                             "MA"),
+    (r"\bb\.?sc\b|\bb\.?s\b",                              "BSc / BS"),
+    (r"\bb\.?ba\b",                                        "BBA"),
+    (r"\bb\.?a\b(?!nk)",                                   "BA"),
+    (r"\bb\.?eng\b|\bb\.?tech\b",                          "B.Eng / B.Tech"),
+    (r"\bllb\b|\blaw\b",                                   "LLB / Law"),
+    (r"\bmbbs\b|\bmd\b(?!\s+degree)",                      "MBBS / MD"),
+    (r"\bdiploma\b",                                       "Diploma"),
+    (r"\bhsc\b|\bintermediate\b|\ba[\s-]?levels?\b",       "HSC / A-Level"),
+    (r"\bssc\b|\bo[\s-]?levels?\b|\bmatric(?:ulation)?\b", "SSC / O-Level"),
 ]
 
 
@@ -538,7 +542,7 @@ def extract_degrees(series: pd.Series) -> pd.Series:
     results = []
     for text in series.fillna("").astype(str):
         text_lower = text.lower()
-        found = "Not Specified"
+        found      = "Not Specified"
         for pattern, label in DEGREE_PATTERNS:
             if re.search(pattern, text_lower):
                 found = label
@@ -608,7 +612,10 @@ def get_industry_education_matrix(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     top_industries = tmp["industry"].value_counts().head(8).index.tolist()
     top_degrees    = tmp["degree"].value_counts().head(6).index.tolist()
-    tmp = tmp[tmp["industry"].isin(top_industries) & tmp["degree"].isin(top_degrees)]
+    tmp = tmp[
+        tmp["industry"].isin(top_industries) &
+        tmp["degree"].isin(top_degrees)
+    ]
     matrix = (
         tmp.groupby(["industry", "degree"])
         .size()
@@ -619,7 +626,7 @@ def get_industry_education_matrix(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# NEW: Company Intelligence Helpers
+# Company Intelligence Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -627,21 +634,22 @@ def get_company_intel(company_name: str, df: pd.DataFrame) -> dict:
     """
     Build a full intelligence profile for a single company.
 
-    Returns a dict with:
-        total_openings   : int
-        roles            : list[str]   all unique job titles
-        locations        : list[str]   all unique locations
-        industries       : list[str]   all unique industries
-        top_role         : str         most common role
-        top_location     : str         most common location
-        trend            : str         "up" | "down" | "stable" | "unknown"
-        trend_delta      : int         change in postings vs previous period
-        recent_count     : int         jobs posted in last 7 days
-        prev_count       : int         jobs posted in the 7 days before that
-        role_breakdown   : pd.DataFrame  columns: Role, Count
-        location_breakdown: pd.DataFrame columns: Location, Count
-        exp_breakdown    : pd.DataFrame  columns: Level, Count
-        all_jobs         : pd.DataFrame  all rows for this company
+    Returns a dict with keys:
+        total_openings    : int
+        roles             : list[str]
+        locations         : list[str]
+        industries        : list[str]
+        top_role          : str
+        top_location      : str
+        trend             : "up" | "down" | "stable" | "unknown"
+        trend_delta       : int
+        recent_count      : int   (last 7 days)
+        prev_count        : int   (7 days before that)
+        role_breakdown    : pd.DataFrame  — columns: Role, Count
+        location_breakdown: pd.DataFrame  — columns: Location, Count
+        exp_breakdown     : pd.DataFrame  — columns: Level, Count
+        all_jobs          : pd.DataFrame  — display-ready jobs table
+        error             : str | None
     """
     if df.empty or company_name not in df["company"].values:
         return {"error": f"No data found for '{company_name}'."}
@@ -653,18 +661,20 @@ def get_company_intel(company_name: str, df: pd.DataFrame) -> dict:
     roles          = co_df["job_title"].dropna().unique().tolist()
     locations      = co_df["location"].dropna().unique().tolist()
     industries     = co_df["industry"].dropna().unique().tolist()
-    top_role       = co_df["job_title"].mode().iloc[0] if not co_df["job_title"].mode().empty else "N/A"
-    top_location   = co_df["location"].mode().iloc[0]  if not co_df["location"].mode().empty  else "N/A"
+    top_role       = (co_df["job_title"].mode().iloc[0]
+                      if not co_df["job_title"].mode().empty else "N/A")
+    top_location   = (co_df["location"].mode().iloc[0]
+                      if not co_df["location"].mode().empty  else "N/A")
 
-    # ── Trend: compare last 7 days vs prior 7 days ─────────────────────────
-    trend = "unknown"
+    # ── Trend: last 7 days vs prior 7 days ────────────────────────────────
+    trend        = "unknown"
     trend_delta  = 0
     recent_count = 0
     prev_count   = 0
 
     if "date_scraped" in co_df.columns:
-        dates = pd.to_datetime(co_df["date_scraped"], errors="coerce")
-        now   = pd.Timestamp.now()
+        dates       = pd.to_datetime(co_df["date_scraped"], errors="coerce")
+        now         = pd.Timestamp.now()
         week1_start = now - pd.Timedelta(days=7)
         week2_start = now - pd.Timedelta(days=14)
 
@@ -672,44 +682,34 @@ def get_company_intel(company_name: str, df: pd.DataFrame) -> dict:
         prev_count   = int(((dates >= week2_start) & (dates < week1_start)).sum())
 
         if prev_count == 0 and recent_count > 0:
-            trend       = "up"
-            trend_delta = recent_count
+            trend, trend_delta = "up", recent_count
         elif prev_count == 0 and recent_count == 0:
             trend = "unknown"
         elif recent_count > prev_count:
-            trend       = "up"
-            trend_delta = recent_count - prev_count
+            trend, trend_delta = "up",   recent_count - prev_count
         elif recent_count < prev_count:
-            trend       = "down"
-            trend_delta = prev_count - recent_count
+            trend, trend_delta = "down", prev_count - recent_count
         else:
             trend = "stable"
 
-    # ── Breakdowns ─────────────────────────────────────────────────────────
-    role_breakdown = (
-        co_df["job_title"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={"job_title": "Role", "count": "Count"})
-    )
-    # handle both pandas naming styles
-    role_breakdown.columns = ["Role", "Count"]
+    # ── Role breakdown — pandas 2.0-safe ──────────────────────────────────
+    _rb = co_df["job_title"].value_counts().reset_index()
+    _rb.columns = ["Role", "Count"]
+    role_breakdown = _rb
 
-    location_breakdown = (
-        co_df["location"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={"location": "Location", "count": "Count"})
-    )
-    location_breakdown.columns = ["Location", "Count"]
+    # ── Location breakdown — pandas 2.0-safe ──────────────────────────────
+    _lb = co_df["location"].value_counts().reset_index()
+    _lb.columns = ["Location", "Count"]
+    location_breakdown = _lb
 
-    # Experience breakdown using existing helper
+    # ── Experience breakdown ───────────────────────────────────────────────
     exp_breakdown = get_experience_level_counts(co_df)
 
-    # Clean jobs table for display
+    # ── Display-ready jobs table ───────────────────────────────────────────
     display_cols = ["job_title", "location", "industry"]
     if "date_scraped" in co_df.columns:
         display_cols.append("date_scraped")
+
     all_jobs = co_df[display_cols].rename(columns={
         "job_title":    "Job Title",
         "location":     "Location",
@@ -718,21 +718,21 @@ def get_company_intel(company_name: str, df: pd.DataFrame) -> dict:
     })
 
     return {
-        "total_openings":    total_openings,
-        "roles":             roles,
-        "locations":         locations,
-        "industries":        industries,
-        "top_role":          top_role,
-        "top_location":      top_location,
-        "trend":             trend,
-        "trend_delta":       trend_delta,
-        "recent_count":      recent_count,
-        "prev_count":        prev_count,
-        "role_breakdown":    role_breakdown,
-        "location_breakdown":location_breakdown,
-        "exp_breakdown":     exp_breakdown,
-        "all_jobs":          all_jobs,
-        "error":             None,
+        "total_openings":     total_openings,
+        "roles":              roles,
+        "locations":          locations,
+        "industries":         industries,
+        "top_role":           top_role,
+        "top_location":       top_location,
+        "trend":              trend,
+        "trend_delta":        trend_delta,
+        "recent_count":       recent_count,
+        "prev_count":         prev_count,
+        "role_breakdown":     role_breakdown,
+        "location_breakdown": location_breakdown,
+        "exp_breakdown":      exp_breakdown,
+        "all_jobs":           all_jobs,
+        "error":              None,
     }
 
 
