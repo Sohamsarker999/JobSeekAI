@@ -29,6 +29,7 @@ from ai_summary import (  # noqa: E402
     generate_market_summary,
     generate_job_recommendations,
     analyze_skill_gap,
+    estimate_salary,
 )
 from utils import (  # noqa: E402
     apply_filters,
@@ -119,74 +120,108 @@ st.markdown(
     .badge-old     { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
     .badge-unknown { background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; }
 
-    /* ── Skill Gap: readiness score ring ─────────────────────────────── */
-    .score-ring {
-        display        : flex;
-        flex-direction : column;
-        align-items    : center;
-        justify-content: center;
-        width          : 160px;
-        height         : 160px;
-        border-radius  : 50%;
-        border         : 8px solid;
-        margin         : 0 auto 16px auto;
+    /* ── Salary estimator form ────────────────────────────────────────── */
+    .form-card {
+        background    : #ffffff;
+        border        : 1px solid #e2e8f0;
+        border-radius : 16px;
+        padding       : 32px 36px;
+        box-shadow    : 0 4px 24px rgba(37,99,235,0.07);
     }
-    .score-number {
-        font-size   : 2.6rem;
+    .form-section-label {
+        font-size      : 0.75rem;
+        font-weight    : 700;
+        color          : #94a3b8;
+        text-transform : uppercase;
+        letter-spacing : 0.08em;
+        margin-bottom  : 6px;
+        margin-top     : 18px;
+    }
+
+    /* ── Salary result card ───────────────────────────────────────────── */
+    .salary-result-card {
+        background    : linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+        border        : 1px solid #bfdbfe;
+        border-radius : 16px;
+        padding       : 32px 36px;
+        margin-top    : 24px;
+    }
+    .salary-range-display {
+        text-align  : center;
+        padding     : 28px 0 20px 0;
+    }
+    .salary-min-max {
+        font-size   : 1rem;
+        color       : #64748b;
+        font-weight : 500;
+    }
+    .salary-median {
+        font-size   : 3rem;
         font-weight : 900;
-        line-height : 1;
+        color       : #1e3a8a;
+        line-height : 1.1;
+        margin      : 8px 0 4px 0;
     }
-    .score-label-text {
+    .salary-median-label {
         font-size   : 0.85rem;
-        font-weight : 600;
-        margin-top  : 4px;
+        color       : #64748b;
+        font-weight : 500;
+    }
+    .salary-bar-track {
+        background    : #dbeafe;
+        border-radius : 99px;
+        height        : 12px;
+        margin        : 20px 0 8px 0;
+        position      : relative;
+        overflow      : hidden;
+    }
+    .salary-bar-fill {
+        height        : 100%;
+        border-radius : 99px;
+        background    : linear-gradient(90deg, #2563eb, #0ea5e9);
     }
 
     /* ── Skill tags ───────────────────────────────────────────────────── */
     .tag-matched  {
-        display      : inline-block;
-        background   : #dcfce7;
-        color        : #15803d;
-        border       : 1px solid #86efac;
-        border-radius: 99px;
-        padding      : 3px 12px;
-        font-size    : 0.82rem;
-        font-weight  : 600;
-        margin       : 3px;
+        display:inline-block; background:#dcfce7; color:#15803d;
+        border:1px solid #86efac; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
     }
     .tag-missing  {
-        display      : inline-block;
-        background   : #fee2e2;
-        color        : #b91c1c;
-        border       : 1px solid #fca5a5;
-        border-radius: 99px;
-        padding      : 3px 12px;
-        font-size    : 0.82rem;
-        font-weight  : 600;
-        margin       : 3px;
+        display:inline-block; background:#fee2e2; color:#b91c1c;
+        border:1px solid #fca5a5; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
     }
     .tag-optional {
-        display      : inline-block;
-        background   : #fef9c3;
-        color        : #a16207;
-        border       : 1px solid #fde047;
-        border-radius: 99px;
-        padding      : 3px 12px;
-        font-size    : 0.82rem;
-        font-weight  : 600;
-        margin       : 3px;
+        display:inline-block; background:#fef9c3; color:#a16207;
+        border:1px solid #fde047; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
     }
     .tag-strength {
-        display      : inline-block;
-        background   : #ede9fe;
-        color        : #6d28d9;
-        border       : 1px solid #c4b5fd;
-        border-radius: 99px;
-        padding      : 3px 12px;
-        font-size    : 0.82rem;
-        font-weight  : 600;
-        margin       : 3px;
+        display:inline-block; background:#ede9fe; color:#6d28d9;
+        border:1px solid #c4b5fd; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
     }
+    .tag-up   {
+        display:inline-block; background:#dcfce7; color:#15803d;
+        border:1px solid #86efac; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
+    }
+    .tag-down {
+        display:inline-block; background:#fee2e2; color:#b91c1c;
+        border:1px solid #fca5a5; border-radius:99px;
+        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
+    }
+
+    /* ── Score ring ───────────────────────────────────────────────────── */
+    .score-ring {
+        display:flex; flex-direction:column;
+        align-items:center; justify-content:center;
+        width:160px; height:160px; border-radius:50%; border:8px solid;
+        margin:0 auto 16px auto;
+    }
+    .score-number      { font-size:2.6rem; font-weight:900; line-height:1; }
+    .score-label-text  { font-size:0.85rem; font-weight:600; margin-top:4px; }
 
     hr { margin: 2rem 0; }
     </style>
@@ -312,7 +347,6 @@ with col_left:
     st.pyplot(plot_industry_distribution(df))
 with col_right:
     st.pyplot(plot_location_distribution(df))
-
 st.markdown("---")
 
 
@@ -335,7 +369,6 @@ if fig_trend:
     st.pyplot(fig_trend)
 else:
     st.info("Trend data will appear after multiple days of scraping.")
-
 st.markdown("---")
 
 
@@ -370,8 +403,8 @@ st.markdown("---")
 
 st.header("🎓 Education & Experience Analytics")
 st.markdown(
-    "Deep-dive into what qualifications and experience levels the "
-    "Bangladesh job market is demanding right now."
+    "Deep-dive into what qualifications and experience levels "
+    "the Bangladesh job market is demanding right now."
 )
 
 tab_deg, tab_exp, tab_heat = st.tabs([
@@ -383,60 +416,47 @@ tab_deg, tab_exp, tab_heat = st.tabs([
 with tab_deg:
     degree_counts = get_degree_counts(df)
     if degree_counts.empty:
-        st.info(
-            "No degree data found yet. This chart populates once the scraper "
-            "collects education keywords such as BSc, MBA, Diploma etc."
-        )
+        st.info("No degree data found yet. Populates once scraper collects education keywords.")
     else:
         fig_deg = plot_degree_demand(degree_counts)
         if fig_deg:
             st.pyplot(fig_deg)
         top_deg = degree_counts.iloc[0]
         st.success(
-            f"🏆 **Most demanded qualification:** {top_deg['Degree']} "
-            f"— required in **{top_deg['Count']}** postings "
+            f"🏆 **Most demanded:** {top_deg['Degree']} — "
+            f"**{top_deg['Count']}** postings "
             f"({top_deg['Count']/len(df)*100:.1f}% of filtered jobs)"
         )
-        with st.expander("📊 View full degree breakdown table"):
+        with st.expander("📊 Full degree breakdown"):
             st.dataframe(degree_counts, use_container_width=True, hide_index=True)
 
 with tab_exp:
     exp_counts = get_experience_level_counts(df)
     if exp_counts.empty or exp_counts["Count"].sum() == 0:
-        st.info(
-            "No experience-level data found yet. This chart appears once "
-            "postings mention year requirements like '2 years', '5+ years' etc."
-        )
+        st.info("No experience-level data found yet.")
     else:
         fig_exp_lvl = plot_experience_levels(exp_counts)
         if fig_exp_lvl:
             st.pyplot(fig_exp_lvl)
-        total_with_exp = exp_counts["Count"].sum()
+        total_exp = exp_counts["Count"].sum()
         for _, row in exp_counts.iterrows():
-            pct  = row["Count"] / total_with_exp * 100
+            pct  = row["Count"] / total_exp * 100
             icon = "🟢" if row["Level"].startswith("Entry") else (
                    "🔵" if row["Level"].startswith("Mid") else "🟣")
             st.caption(f"{icon} **{row['Level']}** — {row['Count']} jobs ({pct:.1f}%)")
-        with st.expander("📊 View experience level table"):
+        with st.expander("📊 Experience level table"):
             st.dataframe(exp_counts, use_container_width=True, hide_index=True)
 
 with tab_heat:
     matrix = get_industry_education_matrix(df)
     if matrix.empty:
-        st.info(
-            "Not enough data to build the cross-analysis heatmap yet. "
-            "This appears once there are jobs with both industry tags "
-            "and recognised degree keywords."
-        )
+        st.info("Not enough data yet for the cross-analysis heatmap.")
     else:
-        st.markdown(
-            "Each cell shows how many job postings in that industry "
-            "require a given education level. **Darker = more demand.**"
-        )
+        st.markdown("Each cell = job postings requiring that degree in that industry. **Darker = more demand.**")
         fig_heat = plot_industry_education_heatmap(matrix)
         if fig_heat:
             st.pyplot(fig_heat)
-        with st.expander("📊 View raw heatmap data"):
+        with st.expander("📊 Raw heatmap data"):
             st.dataframe(matrix, use_container_width=True)
 
 st.markdown("---")
@@ -458,10 +478,7 @@ if st.button("Generate Market Summary", type="primary", use_container_width=True
         summary  = generate_market_summary(top_sk, metrics, top_role, top_ind)
     st.markdown(summary)
 else:
-    st.info(
-        "Click **Generate Market Summary** to get an AI-powered executive "
-        "brief based on the currently filtered data."
-    )
+    st.info("Click **Generate Market Summary** for an AI-powered brief on filtered data.")
 
 st.markdown("---")
 
@@ -472,7 +489,7 @@ st.markdown("---")
 
 st.header("🎯 AI-Powered Job Recommendations")
 st.markdown(
-    "Describe your **skills, experience, and background** below. "
+    "Describe your **skills, experience, and background**. "
     "Our AI will scan today's job listings and surface your top matches."
 )
 
@@ -480,17 +497,14 @@ with st.form("rec_form"):
     user_profile_rec = st.text_area(
         label="Your Skills & Experience",
         placeholder=(
-            "Example:\n"
-            "I have 2 years of experience in Python and data analysis. "
-            "I know Pandas, SQL, and Power BI. I hold a BSc in CSE "
-            "and am looking for a data or software role in Dhaka."
+            "Example: I have 2 years of experience in Python and data analysis. "
+            "I know Pandas, SQL, and Power BI. BSc in CSE. Looking for data roles in Dhaka."
         ),
         height=160,
     )
     col_a, col_b = st.columns([3, 1])
     with col_b:
         top_n = st.selectbox("Show top", [3, 5, 7], index=1)
-
     submitted_rec = st.form_submit_button(
         "🔍 Find My Best Matches", type="primary", use_container_width=True
     )
@@ -499,10 +513,8 @@ if submitted_rec:
     if not user_profile_rec.strip():
         st.warning("⚠️ Please enter your skills and experience before searching.")
     else:
-        with st.spinner("AI is scanning job listings for you … (may take ~15 seconds)"):
-            recommendations = generate_job_recommendations(
-                user_profile_rec, df, top_n=top_n
-            )
+        with st.spinner("AI is scanning job listings … (~15 seconds)"):
+            recommendations = generate_job_recommendations(user_profile_rec, df, top_n=top_n)
 
         if not recommendations:
             st.error("No recommendations returned. Please try again.")
@@ -511,16 +523,10 @@ if submitted_rec:
         else:
             st.success(f"✅ Found your top **{len(recommendations)}** job matches!")
             st.markdown("---")
-
             for rec in recommendations:
                 score = rec["match_score"]
-                if score >= 80:
-                    score_emoji, score_label = "🟢", "Strong Match"
-                elif score >= 60:
-                    score_emoji, score_label = "🟡", "Good Match"
-                else:
-                    score_emoji, score_label = "🔴", "Partial Match"
-
+                score_emoji = "🟢" if score >= 80 else ("🟡" if score >= 60 else "🔴")
+                score_label = "Strong Match" if score >= 80 else ("Good Match" if score >= 60 else "Partial Match")
                 with st.expander(
                     f"{score_emoji}  #{rec['rank']}  —  **{rec['job_title']}** "
                     f"@ {rec['company']}  |  Score: {score}/100  ({score_label})",
@@ -530,41 +536,34 @@ if submitted_rec:
                     m1.metric("📍 Location", rec["location"])
                     m2.metric("🏭 Industry",  rec["industry"])
                     m3.metric("🎯 Match",     f"{score}/100")
-                    st.markdown(f"**🤖 Why this fits you:**  {rec['reason']}")
-                    if rec.get("experience") and rec["experience"] not in ("N/A", "nan", ""):
+                    st.markdown(f"**🤖 Why this fits you:** {rec['reason']}")
+                    if rec.get("experience") and rec["experience"] not in ("N/A","nan",""):
                         st.caption(f"📋 Skills/Info: {rec['experience']}")
-                    if rec.get("deadline") and rec["deadline"] not in ("N/A", "nan", ""):
+                    if rec.get("deadline") and rec["deadline"] not in ("N/A","nan",""):
                         st.caption(f"⏰ Deadline: {rec['deadline']}")
-
             st.markdown("---")
-            st.caption(
-                "💡 **Tip:** Apply filters in the sidebar before searching "
-                "to narrow results to your preferred area."
-            )
+            st.caption("💡 Tip: Filter by industry/location in the sidebar before searching.")
 
 st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 8  SKILL GAP ANALYZER  ◄─ NEW FEATURE
+# § 8  SKILL GAP ANALYZER
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("🔍 Skill Gap Analyzer")
 st.markdown(
-    "Enter your current skills and background. Our AI will compare you "
-    "against **live market demand** from today's job listings and tell you "
-    "exactly what's missing — and how to fix it."
+    "Enter your current skills and background. Our AI compares you against "
+    "**live market demand** and tells you exactly what's missing — and how to fix it."
 )
 
 with st.form("gap_form"):
     user_profile_gap = st.text_area(
         label="Your Current Skills & Background",
         placeholder=(
-            "Example:\n"
-            "I have 1 year of experience in Python and basic SQL. "
+            "Example: I have 1 year of experience in Python and basic SQL. "
             "I know Excel and have done some data analysis projects. "
-            "I hold a BSc in CSE from a private university in Dhaka. "
-            "I'm looking to move into data science or software development."
+            "BSc in CSE from a private university in Dhaka."
         ),
         height=170,
     )
@@ -576,36 +575,27 @@ if submitted_gap:
     if not user_profile_gap.strip():
         st.warning("⚠️ Please describe your skills and background first.")
     else:
-        with st.spinner(
-            "AI is analysing your profile against live market data … (may take ~15 seconds)"
-        ):
+        with st.spinner("Analysing your profile against live market data … (~15 seconds)"):
             gap_result = analyze_skill_gap(user_profile_gap, df)
 
-        # ── Error state ────────────────────────────────────────────────────
         if gap_result.get("error"):
             st.error(gap_result["error"])
-
-        # ── Success: render the full report ───────────────────────────────
         else:
             score       = int(gap_result.get("readiness_score", 50))
             score_label = gap_result.get("score_label", "")
             score_color = gap_result.get("score_color", "#2563eb")
 
             st.markdown("---")
-
-            # ── Row 1: Score ring + Summary side by side ───────────────────
             ring_col, summary_col = st.columns([1, 2])
 
             with ring_col:
                 st.markdown(
                     f"""
-                    <div class="score-ring" style="border-color:{score_color};
-                         color:{score_color};">
+                    <div class="score-ring" style="border-color:{score_color};color:{score_color};">
                         <span class="score-number">{score}</span>
                         <span class="score-label-text">{score_label}</span>
                     </div>
-                    <p style="text-align:center; font-size:0.85rem;
-                       color:#64748b; margin-top:4px;">
+                    <p style="text-align:center;font-size:0.85rem;color:#64748b;margin-top:4px;">
                         Market Readiness Score
                     </p>
                     """,
@@ -615,19 +605,15 @@ if submitted_gap:
             with summary_col:
                 st.markdown("### 📝 Your Market Position")
                 st.markdown(gap_result.get("summary", ""))
-
-                # Best-fit roles
-                top_roles = gap_result.get("top_roles", [])
-                if top_roles:
+                top_roles_gap = gap_result.get("top_roles", [])
+                if top_roles_gap:
                     st.markdown("**🎯 Best-fit roles for you right now:**")
-                    roles_html = " ".join(
-                        f'<span class="tag-strength">{r}</span>' for r in top_roles
+                    st.markdown(
+                        " ".join(f'<span class="tag-strength">{r}</span>' for r in top_roles_gap),
+                        unsafe_allow_html=True,
                     )
-                    st.markdown(roles_html, unsafe_allow_html=True)
 
             st.markdown("---")
-
-            # ── Row 2: Three columns — Matched / Strengths / Optional gaps ──
             col_match, col_strength, col_optional = st.columns(3)
 
             with col_match:
@@ -635,22 +621,22 @@ if submitted_gap:
                 st.caption("In-demand skills from your profile")
                 matched = gap_result.get("matched_skills", [])
                 if matched:
-                    tags = " ".join(
-                        f'<span class="tag-matched">{s}</span>' for s in matched
+                    st.markdown(
+                        " ".join(f'<span class="tag-matched">{s}</span>' for s in matched),
+                        unsafe_allow_html=True,
                     )
-                    st.markdown(tags, unsafe_allow_html=True)
                 else:
-                    st.info("No direct skill matches found — focus on building fundamentals.")
+                    st.info("No direct skill matches found.")
 
             with col_strength:
                 st.markdown("### 💪 Your Strengths")
-                st.caption("Standout advantages you have")
+                st.caption("Standout advantages")
                 strengths = gap_result.get("strengths", [])
                 if strengths:
-                    tags = " ".join(
-                        f'<span class="tag-strength">{s}</span>' for s in strengths
+                    st.markdown(
+                        " ".join(f'<span class="tag-strength">{s}</span>' for s in strengths),
+                        unsafe_allow_html=True,
                     )
-                    st.markdown(tags, unsafe_allow_html=True)
                 else:
                     st.info("Build more experience to develop clear strengths.")
 
@@ -659,51 +645,33 @@ if submitted_gap:
                 st.caption("Optional skills that boost your profile")
                 optional = gap_result.get("missing_optional", [])
                 if optional:
-                    tags = " ".join(
-                        f'<span class="tag-optional">{s}</span>' for s in optional
+                    st.markdown(
+                        " ".join(f'<span class="tag-optional">{s}</span>' for s in optional),
+                        unsafe_allow_html=True,
                     )
-                    st.markdown(tags, unsafe_allow_html=True)
                 else:
-                    st.success("No significant optional gaps found!")
+                    st.success("No significant optional gaps!")
 
             st.markdown("---")
-
-            # ── Row 3: Critical gaps — full width with learning paths ───────
             st.markdown("### ❌ Critical Skill Gaps — Your Learning Roadmap")
-            st.caption(
-                "These are the highest-impact skills missing from your profile "
-                "based on what Bangladesh employers are actively hiring for right now."
-            )
+            st.caption("Highest-impact skills missing from your profile based on live market demand.")
 
             missing_critical = gap_result.get("missing_critical", [])
             if not missing_critical:
-                st.success(
-                    "🎉 No critical gaps found! Your profile is well-aligned "
-                    "with current market demand."
-                )
+                st.success("🎉 No critical gaps! Your profile is well-aligned with market demand.")
             else:
                 for i, gap in enumerate(missing_critical):
-                    skill      = gap.get("skill",        "Unknown skill")
-                    reason     = gap.get("reason",       "")
-                    how_to     = gap.get("how_to_learn", "")
-
-                    with st.expander(
-                        f"❌  Gap #{i+1}: **{skill}**",
-                        expanded=(i == 0),   # auto-open the first gap
-                    ):
-                        g1, g2 = st.columns([1, 1])
+                    with st.expander(f"❌  Gap #{i+1}: **{gap.get('skill','Unknown')}**", expanded=(i==0)):
+                        g1, g2 = st.columns(2)
                         with g1:
                             st.markdown("**📌 Why this matters:**")
-                            st.markdown(reason)
+                            st.markdown(gap.get("reason", ""))
                         with g2:
                             st.markdown("**📚 How to learn it (free):**")
-                            st.markdown(how_to)
+                            st.markdown(gap.get("how_to_learn", ""))
 
             st.markdown("---")
-
-            # ── Row 4: Progress indicator bar ─────────────────────────────
             st.markdown("### 📊 Readiness Breakdown")
-
             num_matched  = len(gap_result.get("matched_skills",   []))
             num_critical = len(gap_result.get("missing_critical", []))
             num_optional = len(gap_result.get("missing_optional", []))
@@ -711,34 +679,266 @@ if submitted_gap:
 
             if total_skills > 0:
                 c1, c2, c3 = st.columns(3)
-                c1.metric(
-                    "✅ Skills Matched",
-                    num_matched,
-                    delta=f"{num_matched/total_skills*100:.0f}% of tracked skills",
-                    delta_color="normal",
-                )
-                c2.metric(
-                    "❌ Critical Gaps",
-                    num_critical,
-                    delta="High priority" if num_critical > 0 else "None — great!",
-                    delta_color="inverse" if num_critical > 0 else "normal",
-                )
-                c3.metric(
-                    "🟡 Optional Gaps",
-                    num_optional,
-                    delta="Nice to address" if num_optional > 0 else "None",
-                    delta_color="off",
-                )
+                c1.metric("✅ Skills Matched",  num_matched,
+                          delta=f"{num_matched/total_skills*100:.0f}% of tracked skills",
+                          delta_color="normal")
+                c2.metric("❌ Critical Gaps",   num_critical,
+                          delta="High priority" if num_critical > 0 else "None — great!",
+                          delta_color="inverse" if num_critical > 0 else "normal")
+                c3.metric("🟡 Optional Gaps",   num_optional,
+                          delta="Nice to address" if num_optional > 0 else "None",
+                          delta_color="off")
 
-            st.caption(
-                "💡 **Tip:** Use the sidebar filters to focus on a specific "
-                "industry (e.g. IT, Banking) before running the analyzer — "
-                "the gap report will be tailored to that sector's demand."
-            )
+            st.caption("💡 Tip: Filter to a specific industry before analyzing for sector-specific gaps.")
+
+st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 9  EXPORT & DOWNLOAD
+# § 9  SALARY ESTIMATOR  ◄─ NEW FEATURE
+# ═══════════════════════════════════════════════════════════════════════════
+
+st.header("💰 AI Salary Estimator")
+st.markdown(
+    "Fill in your profile below and our AI will estimate a **realistic BDT salary range** "
+    "for your role — grounded in live market data from BDJobs.com."
+)
+
+# ── The form card ──────────────────────────────────────────────────────────
+st.markdown('<div class="form-card">', unsafe_allow_html=True)
+
+with st.form("salary_form"):
+
+    # Section 1 — Role details
+    st.markdown('<p class="form-section-label">🏷️ Role Details</p>', unsafe_allow_html=True)
+    col_role, col_industry = st.columns(2)
+
+    with col_role:
+        # Pull unique job titles from scraped data, sorted alphabetically
+        job_titles_list = sorted(raw_df["job_title"].dropna().unique().tolist())
+        sel_job_title   = st.selectbox(
+            "Job Title *",
+            options   = ["— Select a role —"] + job_titles_list,
+            index     = 0,
+            help      = "Select the role you want salary data for.",
+        )
+
+    with col_industry:
+        industries_list = sorted(raw_df["industry"].dropna().unique().tolist())
+        sel_industry    = st.selectbox(
+            "Industry *",
+            options = ["— Select an industry —"] + industries_list,
+            index   = 0,
+            help    = "The industry/sector you're targeting.",
+        )
+
+    st.markdown('<p class="form-section-label">📍 Location & Experience</p>', unsafe_allow_html=True)
+    col_loc, col_level, col_years = st.columns(3)
+
+    with col_loc:
+        locations_list = sorted(raw_df["location"].dropna().unique().tolist())
+        sel_location   = st.selectbox(
+            "Location *",
+            options = ["— Select a location —"] + locations_list,
+            index   = 0,
+            help    = "Job location (Dhaka salaries are typically higher).",
+        )
+
+    with col_level:
+        sel_exp_level = st.selectbox(
+            "Experience Level *",
+            options = [
+                "— Select level —",
+                "Entry Level (0–2 years)",
+                "Mid Level (3–5 years)",
+                "Senior Level (6–10 years)",
+                "Expert / Lead (10+ years)",
+            ],
+            index = 0,
+            help  = "Your seniority level.",
+        )
+
+    with col_years:
+        sel_years = st.slider(
+            "Years of Experience",
+            min_value = 0,
+            max_value = 20,
+            value     = 2,
+            step      = 1,
+            help      = "Drag to set your total years of work experience.",
+        )
+
+    # Section 3 — Education
+    st.markdown('<p class="form-section-label">🎓 Education</p>', unsafe_allow_html=True)
+    sel_education = st.selectbox(
+        "Highest Education Level *",
+        options = [
+            "— Select education —",
+            "SSC / O-Level",
+            "HSC / A-Level",
+            "Diploma",
+            "Bachelor's (BSc / BA / BBA / B.Eng)",
+            "Master's (MSc / MBA / MA)",
+            "PhD / Doctorate",
+            "Professional Certification (no degree)",
+        ],
+        index = 0,
+        help  = "Your highest completed qualification.",
+    )
+
+    st.markdown("")   # small spacer before button
+
+    submitted_salary = st.form_submit_button(
+        "💰 Estimate My Salary",
+        type             = "primary",
+        use_container_width = True,
+    )
+
+st.markdown('</div>', unsafe_allow_html=True)   # close form-card
+
+# ── Validation & AI call ───────────────────────────────────────────────────
+if submitted_salary:
+    errors = []
+    if sel_job_title.startswith("—"):
+        errors.append("Please select a **Job Title**.")
+    if sel_industry.startswith("—"):
+        errors.append("Please select an **Industry**.")
+    if sel_location.startswith("—"):
+        errors.append("Please select a **Location**.")
+    if sel_exp_level.startswith("—"):
+        errors.append("Please select an **Experience Level**.")
+    if sel_education.startswith("—"):
+        errors.append("Please select your **Education Level**.")
+
+    if errors:
+        for err in errors:
+            st.warning(f"⚠️ {err}")
+    else:
+        with st.spinner("AI is calculating your salary estimate … (~15 seconds)"):
+            sal = estimate_salary(
+                job_title          = sel_job_title,
+                industry           = sel_industry,
+                experience_level   = sel_exp_level,
+                years_of_experience= sel_years,
+                location           = sel_location,
+                education          = sel_education,
+                df                 = df,
+            )
+
+        if sal.get("error"):
+            st.error(sal["error"])
+        else:
+            # ── Result card ────────────────────────────────────────────────
+            mn  = sal["min_salary"]
+            med = sal["median_salary"]
+            mx  = sal["max_salary"]
+            conf      = sal.get("confidence", "Medium")
+            conf_color= sal.get("confidence_color", "#d97706")
+
+            # Calculate fill % for the visual bar (relative to a 300k ceiling)
+            BAR_CEILING = 300_000
+            fill_pct    = min(int((med / BAR_CEILING) * 100), 100)
+
+            st.markdown(
+                f"""
+                <div class="salary-result-card">
+                    <div style="display:flex; justify-content:space-between;
+                                align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <p style="margin:0; font-size:0.8rem; font-weight:700;
+                               color:#64748b; text-transform:uppercase;
+                               letter-spacing:0.06em;">
+                                Estimated Monthly Salary
+                            </p>
+                            <p style="margin:4px 0 0 0; font-size:1rem;
+                               color:#1e293b; font-weight:500;">
+                                {sel_job_title} · {sel_industry} · {sel_location}
+                            </p>
+                        </div>
+                        <div style="background:{conf_color}22; color:{conf_color};
+                                    border:1px solid {conf_color}66;
+                                    border-radius:99px; padding:4px 14px;
+                                    font-size:0.8rem; font-weight:700;">
+                            {conf} Confidence
+                        </div>
+                    </div>
+
+                    <div class="salary-range-display">
+                        <p class="salary-min-max">
+                            BDT {mn:,} &nbsp;—&nbsp; BDT {mx:,} / month
+                        </p>
+                        <p class="salary-median">৳ {med:,}</p>
+                        <p class="salary-median-label">Estimated Median Monthly (BDT)</p>
+
+                        <div class="salary-bar-track">
+                            <div class="salary-bar-fill" style="width:{fill_pct}%;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;
+                                    font-size:0.75rem; color:#94a3b8;">
+                            <span>BDT 0</span>
+                            <span>BDT 1,50,000</span>
+                            <span>BDT 3,00,000+</span>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown("")
+
+            # ── Three info columns ─────────────────────────────────────────
+            col_reason, col_market, col_tips = st.columns(3)
+
+            with col_reason:
+                st.markdown("#### 📌 Why This Estimate")
+                st.markdown(sal.get("reasoning", ""))
+
+            with col_market:
+                st.markdown("#### 📊 Market Context")
+                st.markdown(sal.get("market_context", ""))
+
+            with col_tips:
+                st.markdown("#### 🤝 Negotiation Tips")
+                tips = sal.get("negotiation_tips", [])
+                for tip in tips:
+                    st.markdown(f"• {tip}")
+
+            st.markdown("---")
+
+            # ── Salary push factors ────────────────────────────────────────
+            col_up, col_down = st.columns(2)
+
+            with col_up:
+                st.markdown("#### 📈 Factors That Push Salary Higher")
+                factors_up = sal.get("factors_up", [])
+                if factors_up:
+                    tags = " ".join(
+                        f'<span class="tag-up">✅ {f}</span>' for f in factors_up
+                    )
+                    st.markdown(tags, unsafe_allow_html=True)
+
+            with col_down:
+                st.markdown("#### 📉 Factors That Push Salary Lower")
+                factors_down = sal.get("factors_down", [])
+                if factors_down:
+                    tags = " ".join(
+                        f'<span class="tag-down">⚠️ {f}</span>' for f in factors_down
+                    )
+                    st.markdown(tags, unsafe_allow_html=True)
+
+            st.markdown("")
+            st.caption(
+                "⚠️ **Disclaimer:** This is an AI-generated estimate based on "
+                "Bangladesh market norms and live BDJobs data. Actual salaries vary "
+                "by company, negotiation, and individual profile. Use as a guide only."
+            )
+
+st.markdown("---")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# § 10  EXPORT & DOWNLOAD
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("📥 Export & Download")
@@ -758,9 +958,7 @@ col_csv, col_pdf = st.columns(2)
 
 with col_csv:
     st.markdown("#### 📊 CSV Spreadsheet")
-    st.markdown(
-        f"Export all **{len(df):,} filtered job listings** to a spreadsheet."
-    )
+    st.markdown(f"Export all **{len(df):,} filtered job listings** to a spreadsheet.")
     st.download_button(
         label               = "⬇️ Download CSV",
         data                = to_csv_bytes(df),
@@ -772,10 +970,7 @@ with col_csv:
 
 with col_pdf:
     st.markdown("#### 📄 PDF Market Report")
-    st.markdown(
-        "Generate a formatted report with KPIs, top companies, "
-        "industries, locations, and job listings."
-    )
+    st.markdown("Formatted report with KPIs, top companies, industries, and job listings.")
     if st.button("⬇️ Generate & Download PDF", use_container_width=True, key="pdf_btn"):
         with st.spinner("Building your PDF report …"):
             try:
