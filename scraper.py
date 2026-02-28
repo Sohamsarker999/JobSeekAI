@@ -1,5 +1,5 @@
 """
-scraper.py — Scrapes IT/Tech jobs from BDJobs.com and writes to Google Sheets.
+scraper.py — Scrapes jobs from BDJobs.com and writes to Google Sheets.
 
 Uses BDJobs' internal REST API (list endpoint only).
 Designed to run daily via GitHub Actions.
@@ -9,6 +9,7 @@ DISCLAIMER: For educational and portfolio purposes only.
 
 import json
 import os
+import re
 import time
 from datetime import datetime
 
@@ -41,7 +42,83 @@ CATEGORIES = {
     10: "Engineering",
     3: "Marketing/Sales",
     12: "NGO/Development",
+    1: "Accounting/Finance",
+    6: "Education/Training",
+    9: "Healthcare/Medical",
+    4: "HR/Admin",
+    7: "Garments/Textile",
 }
+
+# ---------------------------------------------------------------------------
+# Industry Detection from Job Title / Education / Company
+# ---------------------------------------------------------------------------
+
+INDUSTRY_KEYWORDS = {
+    "IT/Telecommunication": [
+        "software", "developer", "programmer", "IT ", "flutter", "react",
+        "python", "java", "frontend", "backend", "full stack", "fullstack",
+        "devops", "data engineer", "data scien", "machine learning", "AI ",
+        "cloud", "network", "system admin", "cyber", "web ", "app ",
+        "mern", "node", "database", "telecom",
+    ],
+    "Bank/Financial": [
+        "bank", "banking", "loan", "credit", "finance", "treasury",
+        "investment", "insurance", "microfinance", "accounts", "accounting",
+        "audit", "tax", "vat", "cashier",
+    ],
+    "Engineering": [
+        "engineer", "civil", "mechanical", "electrical", "architect",
+        "construction", "structural", "surveyor", "autocad", "project eng",
+        "site eng", "design eng",
+    ],
+    "Marketing/Sales": [
+        "marketing", "sales", "brand", "digital market", "seo",
+        "social media", "content", "advertising", "promotion",
+        "business develop", "bdm", "area manager", "regional manager",
+        "territory", "merchandis",
+    ],
+    "NGO/Development": [
+        "ngo", "development", "humanitarian", "relief", "undp",
+        "unicef", "project officer", "field officer", "coordinator",
+        "community", "volunteer", "social",
+    ],
+    "Healthcare/Medical": [
+        "medical", "doctor", "nurse", "hospital", "pharma", "health",
+        "diagnostic", "lab ", "laboratory", "patholog", "radiolog",
+        "technologist",
+    ],
+    "Education/Training": [
+        "teacher", "lecturer", "professor", "trainer", "instructor",
+        "education", "school", "university", "academic", "tutor",
+        "training",
+    ],
+    "Garments/Textile": [
+        "garment", "textile", "knitting", "dyeing", "washing",
+        "sewing", "fabric", "apparel", "sweater", "fashion",
+        "merchandiser",
+    ],
+    "HR/Admin": [
+        "hr ", "human resource", "admin", "receptionist", "front desk",
+        "office manage", "executive assist", "personal assist",
+    ],
+    "Accounting/Finance": [
+        "accountant", "accounts officer", "bookkeep", "payroll",
+        "financial analyst",
+    ],
+}
+
+
+def detect_industry(job_title, education="", company=""):
+    """Detect industry from job title, education and company name."""
+    text = f"{job_title} {education} {company}".lower()
+
+    for industry, keywords in INDUSTRY_KEYWORDS.items():
+        for kw in keywords:
+            if kw.lower() in text:
+                return industry
+
+    return "General/Other"
+
 
 # ---------------------------------------------------------------------------
 # Google Sheets
@@ -70,7 +147,7 @@ def connect_to_sheet():
 # ---------------------------------------------------------------------------
 
 
-def fetch_jobs(category_id, industry_name, max_pages=2):
+def fetch_jobs(category_id, max_pages=2):
     """Fetch jobs from a specific BDJobs category."""
     all_jobs = []
 
@@ -83,10 +160,6 @@ def fetch_jobs(category_id, industry_name, max_pages=2):
             jobs = data if isinstance(data, list) else data.get("data", [])
             if not jobs:
                 break
-
-            for job in jobs:
-                job["_industry"] = industry_name
-
             all_jobs.extend(jobs)
             print(f"    Page {page}: {len(jobs)} jobs")
             time.sleep(0.5)
@@ -98,32 +171,36 @@ def fetch_jobs(category_id, industry_name, max_pages=2):
 
 
 def parse_job(job):
-    """Extract available fields from the list API response."""
+    """Extract fields and detect industry from job content."""
     job_title = str(job.get("jobTitle", "") or "").strip()
     company = str(job.get("companyName", "") or "").strip()
     location = str(job.get("location", "") or "").strip()
     experience = str(job.get("experience", "") or "").strip()
     education = str(job.get("eduRec", "") or "").strip()
-    deadline = str(job.get("deadline", "") or "").strip()
-    industry = str(job.get("_industry", "IT/Telecommunication") or "").strip()
     publish_date = str(job.get("publishDate", "") or "").strip()
 
     if not job_title or job_title.lower() == "none":
         return None
 
-    # Use experience and education as proxy for "skills" column
+    # Detect industry from job content
+    industry = detect_industry(job_title, education, company)
+
+    # Build skills from experience + education
     skills_parts = []
     if experience and experience.lower() != "none":
         skills_parts.append(f"Experience: {experience}")
     if education and education.lower() != "none":
-        skills_parts.append(f"Education: {education}")
+        # Clean HTML tags from education
+        clean_edu = re.sub(r"<[^>]+>", "", education).strip()
+        if clean_edu:
+            skills_parts.append(f"Education: {clean_edu}")
     skills = ", ".join(skills_parts)
 
     # Clean location
     if not location or location.lower() == "none":
         location = "Dhaka"
 
-    # Use publish date if available, otherwise today
+    # Parse date
     date_str = datetime.now().strftime("%Y-%m-%d")
     if publish_date and publish_date != "None":
         try:
@@ -167,14 +244,22 @@ def main():
 
     print("3. Fetching jobs from BDJobs...")
     all_jobs = []
+    seen_ids = set()
     for cat_id, cat_name in CATEGORIES.items():
         print(f"  [{cat_name}]")
-        jobs = fetch_jobs(cat_id, cat_name, max_pages=2)
-        all_jobs.extend(jobs)
-    print(f"   Total jobs fetched: {len(all_jobs)}")
+        jobs = fetch_jobs(cat_id, max_pages=2)
+        # Deduplicate across categories
+        for job in jobs:
+            jid = job.get("Jobid") or job.get("jobId") or id(job)
+            if jid not in seen_ids:
+                seen_ids.add(jid)
+                all_jobs.append(job)
+        print(f"    Unique so far: {len(all_jobs)}")
+    print(f"   Total unique jobs: {len(all_jobs)}")
 
     print("4. Processing...")
     new_rows = []
+    industry_counts = {}
     for job in all_jobs:
         parsed = parse_job(job)
         if parsed:
@@ -182,8 +267,14 @@ def main():
             if key not in existing_keys:
                 new_rows.append(parsed)
                 existing_keys.add(key)
+                # Count industries
+                ind = parsed["industry"]
+                industry_counts[ind] = industry_counts.get(ind, 0) + 1
 
     print(f"   New unique jobs: {len(new_rows)}")
+    print(f"   Industry breakdown:")
+    for ind, cnt in sorted(industry_counts.items(), key=lambda x: -x[1]):
+        print(f"     {ind}: {cnt}")
 
     if new_rows:
         print("5. Writing to Google Sheets...")
