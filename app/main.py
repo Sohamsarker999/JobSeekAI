@@ -1,525 +1,1528 @@
 """
-main.py — JobSeekAI: Bangladesh Job Market Analytics Dashboard
-
-Entry point for the Streamlit application.
-Run with:  streamlit run app/main.py
+main.py — JobSeekAI · Bangladesh Job Market Intelligence
+UI: Stone & Gold — Editorial Intelligence aesthetic
 """
 
 from __future__ import annotations
-
-import sys
-import os
+import sys, os
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Page configuration
-# ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="JobSeekAI — BD Job Market Intelligence",
-    page_icon="📊",
+    page_title="JobSeekAI — BD Market Intelligence",
+    page_icon="◆",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-from ai_summary import (  # noqa: E402
-    generate_market_summary,
-    generate_job_recommendations,
-    analyze_skill_gap,
-    estimate_salary,
+from ai_summary import (
+    generate_market_summary, generate_job_recommendations,
+    analyze_skill_gap, estimate_salary,
 )
-from utils import (  # noqa: E402
-    apply_filters,
-    get_filter_options,
-    load_data,
-    most_common_value,
-    top_skills_list,
-    get_delta_jobs,
-    get_jobs_today,
-    get_new_companies_today,
-    get_data_freshness,
-    to_csv_bytes,
-    to_pdf_bytes,
-    get_degree_counts,
-    get_experience_level_counts,
-    get_industry_education_matrix,
-    get_company_intel,
-    get_top_companies_list,
+from utils import (
+    apply_filters, get_filter_options, load_data,
+    most_common_value, top_skills_list,
+    get_delta_jobs, get_jobs_today, get_new_companies_today, get_data_freshness,
+    to_csv_bytes, to_pdf_bytes,
+    get_degree_counts, get_experience_level_counts, get_industry_education_matrix,
+    get_company_intel, get_top_companies_list,
 )
-from visualizations import (  # noqa: E402
-    plot_industry_distribution,
-    plot_top_companies,
-    plot_location_distribution,
+from visualizations import (
+    plot_industry_distribution, plot_top_companies, plot_location_distribution,
     plot_posting_trend,
-    plot_experience_distribution,
-    plot_degree_demand,
-    plot_experience_levels,
-    plot_industry_education_heatmap,
+    plot_degree_demand, plot_experience_levels, plot_industry_education_heatmap,
 )
 
-# ---------------------------------------------------------------------------
-# Custom CSS
-# ---------------------------------------------------------------------------
-st.markdown(
-    """
-    <style>
-    /* ── Metric cards ─────────────────────────────────────────────────── */
-    [data-testid="stMetric"] {
-        background    : #f8fafc;
-        border        : 1px solid #e2e8f0;
-        border-radius : 10px;
-        padding       : 16px 20px;
-        transition    : box-shadow 0.2s;
-    }
-    [data-testid="stMetric"]:hover {
-        box-shadow : 0 4px 12px rgba(37,99,235,0.10);
-    }
-    [data-testid="stMetricLabel"] {
-        font-size      : 0.82rem;
-        font-weight    : 600;
-        color          : #64748b;
-        text-transform : uppercase;
-        letter-spacing : 0.04em;
-    }
-    [data-testid="stMetricValue"] {
-        font-size   : 1.9rem;
-        font-weight : 700;
-        color       : #1e293b;
-    }
+# ══════════════════════════════════════════════════════════════════════════
+#  DESIGN SYSTEM — STONE & GOLD  ·  Editorial Intelligence
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 
-    /* ── Hero banner ──────────────────────────────────────────────────── */
-    .hero-banner {
-        background    : linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
-        border-radius : 14px;
-        padding       : 36px 40px;
-        margin-bottom : 28px;
-        color         : white;
-    }
-    .hero-banner h1 {
-        font-size   : 2.1rem;
-        font-weight : 800;
-        margin      : 0 0 8px 0;
-        line-height : 1.2;
-    }
-    .hero-banner p { font-size: 1.05rem; opacity: 0.88; margin: 0; }
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   TOKEN SYSTEM
+───────────────────────────────────────────────────────────────────── */
+:root {
+  /* Stone palette — warm off-whites to deep ink */
+  --stone-25 : #fdfcfa;
+  --stone-50 : #fafaf8;
+  --stone-100: #f5f4f0;
+  --stone-150: #eeece6;
+  --stone-200: #e5e2da;
+  --stone-300: #ccc8be;
+  --stone-400: #a8a398;
+  --stone-500: #857f74;
+  --stone-600: #645f56;
+  --stone-700: #46423b;
+  --stone-800: #2e2b25;
+  --stone-900: #1a1814;
+  --stone-950: #0d0c0a;
 
-    /* ── Freshness badge ──────────────────────────────────────────────── */
-    .freshness-badge {
-        display       : inline-flex;
-        align-items   : center;
-        gap           : 6px;
-        padding       : 5px 14px;
-        border-radius : 99px;
-        font-size     : 0.82rem;
-        font-weight   : 600;
-        margin-top    : 14px;
-    }
-    .badge-fresh   { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
-    .badge-stale   { background:#fef9c3; color:#a16207; border:1px solid #fde047; }
-    .badge-old     { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
-    .badge-unknown { background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; }
+  /* Gold palette — warm saffron accent */
+  --gold-100: #fef7e0;
+  --gold-200: #fdedb8;
+  --gold-300: #f9d978;
+  --gold-400: #f0c040;
+  --gold-500: #c9a84c;
+  --gold-600: #a8872e;
+  --gold-700: #856a1e;
+  --gold-800: #5c4a15;
 
-    /* ── Company intel card ───────────────────────────────────────────── */
-    .company-card {
-        background    : #ffffff;
-        border        : 1px solid #e2e8f0;
-        border-radius : 16px;
-        padding       : 28px 32px;
-        box-shadow    : 0 4px 20px rgba(37,99,235,0.08);
-        margin-top    : 20px;
-    }
-    .company-name {
-        font-size   : 1.5rem;
-        font-weight : 800;
-        color       : #1e293b;
-        margin      : 0 0 4px 0;
-    }
-    .company-meta {
-        font-size : 0.88rem;
-        color     : #64748b;
-        margin    : 0;
-    }
-    .trend-up   {
-        display:inline-flex; align-items:center; gap:5px;
-        background:#dcfce7; color:#15803d;
-        border:1px solid #86efac; border-radius:99px;
-        padding:4px 14px; font-size:0.82rem; font-weight:700;
-    }
-    .trend-down {
-        display:inline-flex; align-items:center; gap:5px;
-        background:#fee2e2; color:#b91c1c;
-        border:1px solid #fca5a5; border-radius:99px;
-        padding:4px 14px; font-size:0.82rem; font-weight:700;
-    }
-    .trend-stable {
-        display:inline-flex; align-items:center; gap:5px;
-        background:#f1f5f9; color:#64748b;
-        border:1px solid #cbd5e1; border-radius:99px;
-        padding:4px 14px; font-size:0.82rem; font-weight:700;
-    }
-    .quick-btn {
-        display     : inline-block;
-        background  : #eff6ff;
-        color       : #2563eb;
-        border      : 1px solid #bfdbfe;
-        border-radius: 8px;
-        padding     : 6px 14px;
-        font-size   : 0.82rem;
-        font-weight : 600;
-        margin      : 4px;
-        cursor      : pointer;
-    }
+  /* Slate-cool — secondary accent family */
+  --slate-50 : #f0f4f8;
+  --slate-100: #dae4ef;
+  --slate-200: #b8cedf;
+  --slate-300: #89aec8;
+  --slate-400: #5a8eae;
+  --slate-500: #3d7094;
+  --slate-600: #2f5874;
+  --slate-700: #234358;
+  --slate-800: #182f3e;
 
-    /* ── Salary form card ─────────────────────────────────────────────── */
-    .form-card {
-        background    : #ffffff;
-        border        : 1px solid #e2e8f0;
-        border-radius : 16px;
-        padding       : 32px 36px;
-        box-shadow    : 0 4px 24px rgba(37,99,235,0.07);
-    }
-    .form-section-label {
-        font-size      : 0.75rem;
-        font-weight    : 700;
-        color          : #94a3b8;
-        text-transform : uppercase;
-        letter-spacing : 0.08em;
-        margin-bottom  : 6px;
-        margin-top     : 18px;
-    }
+  /* Rose-dust — tertiary / negative */
+  --rose-50 : #fdf2f2;
+  --rose-100: #fce4e4;
+  --rose-200: #f8c4c4;
+  --rose-400: #e87575;
+  --rose-500: #d85555;
+  --rose-600: #b83838;
+  --rose-700: #8f2424;
 
-    /* ── Skill / salary tags ──────────────────────────────────────────── */
-    .tag-matched {
-        display:inline-block; background:#dcfce7; color:#15803d;
-        border:1px solid #86efac; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
-    .tag-missing {
-        display:inline-block; background:#fee2e2; color:#b91c1c;
-        border:1px solid #fca5a5; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
-    .tag-optional {
-        display:inline-block; background:#fef9c3; color:#a16207;
-        border:1px solid #fde047; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
-    .tag-strength {
-        display:inline-block; background:#ede9fe; color:#6d28d9;
-        border:1px solid #c4b5fd; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
-    .tag-up {
-        display:inline-block; background:#dcfce7; color:#15803d;
-        border:1px solid #86efac; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
-    .tag-down {
-        display:inline-block; background:#fee2e2; color:#b91c1c;
-        border:1px solid #fca5a5; border-radius:99px;
-        padding:3px 12px; font-size:0.82rem; font-weight:600; margin:3px;
-    }
+  /* Sage — positive / growth */
+  --sage-50 : #f2f7f3;
+  --sage-100: #dceee0;
+  --sage-200: #b5d9bc;
+  --sage-400: #6aae78;
+  --sage-500: #4a9459;
+  --sage-600: #347544;
+  --sage-700: #235730;
 
-    /* ── Score ring ───────────────────────────────────────────────────── */
-    .score-ring {
-        display:flex; flex-direction:column;
-        align-items:center; justify-content:center;
-        width:160px; height:160px; border-radius:50%; border:8px solid;
-        margin:0 auto 16px auto;
-    }
-    .score-number     { font-size:2.6rem; font-weight:900; line-height:1; }
-    .score-label-text { font-size:0.85rem; font-weight:600; margin-top:4px; }
+  /* Semantic */
+  --bg          : var(--stone-50);
+  --bg-surface  : #ffffff;
+  --bg-subtle   : var(--stone-100);
+  --bg-muted    : var(--stone-150);
 
-    hr { margin: 2rem 0; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+  --border-faint : rgba(168,163,152,0.18);
+  --border-base  : rgba(168,163,152,0.35);
+  --border-strong: rgba(168,163,152,0.6);
+  --border-gold  : rgba(201,168,76,0.4);
+
+  --text-ink     : var(--stone-900);
+  --text-body    : var(--stone-700);
+  --text-muted   : var(--stone-500);
+  --text-faint   : var(--stone-400);
+
+  --accent       : var(--gold-500);
+  --accent-light : var(--gold-100);
+  --accent-dark  : var(--gold-700);
+
+  /* Typography */
+  --font-display : 'Cormorant Garamond', Georgia, serif;
+  --font-sans    : 'Outfit', system-ui, sans-serif;
+  --font-mono    : 'DM Mono', 'Fira Code', monospace;
+
+  /* Elevation shadows (warm-tinted) */
+  --shadow-xs : 0 1px 2px rgba(26,24,20,0.05);
+  --shadow-sm : 0 1px 4px rgba(26,24,20,0.07), 0 1px 2px rgba(26,24,20,0.04);
+  --shadow-md : 0 4px 12px rgba(26,24,20,0.08), 0 2px 4px rgba(26,24,20,0.04);
+  --shadow-lg : 0 12px 28px rgba(26,24,20,0.09), 0 4px 8px rgba(26,24,20,0.05);
+  --shadow-xl : 0 24px 48px rgba(26,24,20,0.10), 0 8px 16px rgba(26,24,20,0.05);
+  --shadow-gold: 0 4px 16px rgba(201,168,76,0.22), 0 1px 4px rgba(201,168,76,0.12);
+
+  /* Spacing (8pt grid) */
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;
+  --s6:24px;--s7:28px;--s8:32px;--s10:40px;--s12:48px;--s16:64px;
+
+  /* Radius */
+  --r-xs:4px;--r-sm:6px;--r-md:10px;--r-lg:14px;--r-xl:20px;--r-2xl:28px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   GLOBAL BASE
+───────────────────────────────────────────────────────────────────── */
+html, body,
+[data-testid="stAppViewContainer"],
+[data-testid="stApp"], .main {
+  background : var(--bg) !important;
+  font-family: var(--font-sans) !important;
+  color      : var(--text-ink) !important;
+}
+
+/* Warm paper-grain texture overlay */
+[data-testid="stAppViewContainer"]::before {
+  content  : '';
+  position : fixed;
+  inset    : 0;
+  background:
+    radial-gradient(ellipse 1200px 800px at 15% 0%,
+      rgba(201,168,76,0.04) 0%, transparent 65%),
+    radial-gradient(ellipse 900px 700px at 90% 100%,
+      rgba(61,112,148,0.03) 0%, transparent 65%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index  : 0;
+}
+
+/* Hide Streamlit chrome */
+#MainMenu,footer,[data-testid="stToolbar"],
+[data-testid="stDecoration"]{ display:none !important; }
+
+.block-container {
+  padding-top  : 0 !important;
+  padding-left : 2.5rem !important;
+  padding-right: 2.5rem !important;
+  max-width    : 1360px !important;
+  position     : relative;
+  z-index      : 1;
+}
+
+hr {
+  border    : none !important;
+  border-top: 1px solid var(--border-base) !important;
+  margin    : var(--s12) 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   SIDEBAR
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+  background  : var(--bg-surface) !important;
+  border-right: 1px solid var(--border-base) !important;
+  box-shadow  : 2px 0 12px rgba(26,24,20,0.04) !important;
+}
+[data-testid="stSidebar"] > div {
+  padding: var(--s8) var(--s6) !important;
+}
+[data-testid="stSidebar"] * {
+  font-family: var(--font-sans) !important;
+  color      : var(--text-ink) !important;
+}
+/* Multiselect tags */
+[data-testid="stSidebar"] span[data-baseweb="tag"] {
+  background  : var(--gold-100) !important;
+  border      : 1px solid var(--border-gold) !important;
+  color       : var(--gold-700) !important;
+  border-radius: var(--r-xs) !important;
+  font-size   : 0.73rem !important;
+  font-weight : 500 !important;
+}
+/* Sidebar reset button */
+[data-testid="stSidebar"] .stButton button {
+  background   : transparent !important;
+  border       : 1px solid var(--border-strong) !important;
+  color        : var(--text-muted) !important;
+  border-radius: var(--r-sm) !important;
+  font-family  : var(--font-sans) !important;
+  font-size    : 0.8rem !important;
+  font-weight  : 500 !important;
+  height       : 36px !important;
+  transition   : all 0.15s ease !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+  background  : var(--stone-100) !important;
+  border-color: var(--stone-400) !important;
+  color       : var(--text-body) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY — global overrides
+───────────────────────────────────────────────────────────────────── */
+h1,h2,h3,h4 {
+  font-family   : var(--font-sans) !important;
+  color         : var(--text-ink) !important;
+  letter-spacing: -0.02em !important;
+}
+p,span,label,div,li { font-family:var(--font-sans) !important; }
+
+[data-testid="stHeading"] h1 {
+  font-size  : 1.85rem !important;
+  font-weight: 700 !important;
+}
+[data-testid="stHeading"] h2 {
+  font-size  : 1.45rem !important;
+  font-weight: 700 !important;
+}
+[data-testid="stHeading"] h3 {
+  font-size  : 1.1rem !important;
+  font-weight: 600 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   METRIC CARDS
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stMetric"] {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-lg) !important;
+  padding      : var(--s6) var(--s7) !important;
+  box-shadow   : var(--shadow-sm) !important;
+  position     : relative !important;
+  overflow     : hidden !important;
+  transition   : transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+[data-testid="stMetric"]::after {
+  content   : '';
+  position  : absolute;
+  bottom    : 0; left: 0; right: 0;
+  height    : 2px;
+  background: linear-gradient(90deg,
+    var(--gold-400) 0%,
+    var(--gold-300) 50%,
+    transparent 100%);
+  opacity   : 0;
+  transition: opacity 0.2s ease;
+}
+[data-testid="stMetric"]:hover {
+  transform : translateY(-2px) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+[data-testid="stMetric"]:hover::after { opacity:1; }
+[data-testid="stMetricLabel"] {
+  font-family   : var(--font-sans) !important;
+  font-size     : 0.68rem !important;
+  font-weight   : 600 !important;
+  color         : var(--text-faint) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+}
+[data-testid="stMetricValue"] {
+  font-family: var(--font-mono) !important;
+  font-size  : 2rem !important;
+  font-weight: 400 !important;
+  color      : var(--stone-900) !important;
+  line-height: 1.1 !important;
+}
+[data-testid="stMetricDelta"] > div {
+  font-family: var(--font-sans) !important;
+  font-size  : 0.74rem !important;
+  font-weight: 500 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────────────────────────────── */
+/* Primary — gold */
+button[data-testid="baseButton-primary"],
+.stButton button[kind="primary"] {
+  background     : var(--stone-900) !important;
+  border         : 1px solid var(--stone-900) !important;
+  color          : var(--stone-25) !important;
+  font-family    : var(--font-sans) !important;
+  font-weight    : 600 !important;
+  font-size      : 0.84rem !important;
+  letter-spacing : 0.02em !important;
+  border-radius  : var(--r-sm) !important;
+  height         : 40px !important;
+  padding        : 0 22px !important;
+  transition     : all 0.18s ease !important;
+  box-shadow     : var(--shadow-sm) !important;
+}
+button[data-testid="baseButton-primary"]:hover,
+.stButton button[kind="primary"]:hover {
+  background: var(--stone-800) !important;
+  box-shadow: var(--shadow-md) !important;
+  transform : translateY(-1px) !important;
+}
+button[data-testid="baseButton-primary"]:active,
+.stButton button[kind="primary"]:active {
+  transform : translateY(0px) !important;
+  background: var(--stone-950) !important;
+}
+
+/* Secondary */
+button[data-testid="baseButton-secondary"],
+.stButton button[kind="secondary"],
+.stButton button:not([kind="primary"]) {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-strong) !important;
+  color        : var(--text-body) !important;
+  font-family  : var(--font-sans) !important;
+  font-weight  : 500 !important;
+  font-size    : 0.82rem !important;
+  border-radius: var(--r-sm) !important;
+  height       : 38px !important;
+  box-shadow   : var(--shadow-xs) !important;
+  transition   : all 0.15s ease !important;
+}
+button[data-testid="baseButton-secondary"]:hover,
+.stButton button:not([kind="primary"]):hover {
+  border-color: var(--accent) !important;
+  color       : var(--accent-dark) !important;
+  background  : var(--gold-100) !important;
+  box-shadow  : var(--shadow-sm) !important;
+}
+
+/* Download */
+[data-testid="stDownloadButton"] button {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-strong) !important;
+  color        : var(--text-body) !important;
+  font-family  : var(--font-sans) !important;
+  font-weight  : 500 !important;
+  border-radius: var(--r-sm) !important;
+  height       : 40px !important;
+  transition   : all 0.15s ease !important;
+}
+[data-testid="stDownloadButton"] button:hover {
+  border-color: var(--accent) !important;
+  color       : var(--accent-dark) !important;
+  background  : var(--gold-100) !important;
+  box-shadow  : var(--shadow-gold) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   FORM INPUTS
+───────────────────────────────────────────────────────────────────── */
+[data-baseweb="select"] > div,
+[data-testid="stSelectbox"] > div > div {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-sm) !important;
+  font-family  : var(--font-sans) !important;
+  font-size    : 0.875rem !important;
+  color        : var(--text-ink) !important;
+  box-shadow   : var(--shadow-xs) !important;
+  transition   : border-color 0.15s, box-shadow 0.15s !important;
+  min-height   : 40px !important;
+}
+[data-baseweb="select"] > div:hover { border-color: var(--stone-400) !important; }
+[data-baseweb="select"] > div:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow  : 0 0 0 3px rgba(201,168,76,0.15) !important;
+}
+[data-baseweb="popover"],[data-baseweb="menu"] {
+  background: var(--bg-surface) !important;
+}
+[data-baseweb="menu"] {
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow   : var(--shadow-xl) !important;
+}
+[data-baseweb="menu"] li {
+  font-family: var(--font-sans) !important;
+  font-size  : 0.85rem !important;
+  color      : var(--text-body) !important;
+  padding    : 8px 14px !important;
+}
+[data-baseweb="menu"] li:hover {
+  background: var(--gold-100) !important;
+  color     : var(--accent-dark) !important;
+}
+[data-baseweb="menu"] [aria-selected="true"] {
+  background: var(--gold-100) !important;
+  color     : var(--gold-700) !important;
+  font-weight: 600 !important;
+}
+
+textarea,
+[data-testid="stTextArea"] textarea {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-sm) !important;
+  color        : var(--text-ink) !important;
+  font-family  : var(--font-sans) !important;
+  font-size    : 0.875rem !important;
+  line-height  : 1.65 !important;
+  box-shadow   : var(--shadow-xs) !important;
+  caret-color  : var(--accent) !important;
+  transition   : border-color 0.15s, box-shadow 0.15s !important;
+}
+textarea:focus,[data-testid="stTextArea"] textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow  : 0 0 0 3px rgba(201,168,76,0.12) !important;
+  outline     : none !important;
+}
+textarea::placeholder { color: var(--text-faint) !important; }
+
+/* Field labels */
+[data-testid="stTextArea"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stSlider"] label,
+[data-testid="stMultiSelect"] label,
+[data-testid="stTextInput"] label {
+  font-family   : var(--font-sans) !important;
+  font-size     : 0.68rem !important;
+  font-weight   : 700 !important;
+  color         : var(--text-faint) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* Slider */
+[data-testid="stSlider"] [data-testid="stSliderTrackFill"] { background: var(--accent) !important; }
+[data-testid="stSlider"] [data-testid="stSliderThumb"] {
+  background  : var(--bg-surface) !important;
+  border      : 2px solid var(--accent) !important;
+  box-shadow  : 0 0 0 3px rgba(201,168,76,0.2) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   TABS
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stTabs"] [role="tablist"] {
+  background   : var(--bg-subtle) !important;
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-sm) !important;
+  padding      : 3px !important;
+  gap          : 1px !important;
+}
+[data-testid="stTabs"] button[role="tab"] {
+  background   : transparent !important;
+  border       : none !important;
+  color        : var(--text-muted) !important;
+  font-family  : var(--font-sans) !important;
+  font-size    : 0.8rem !important;
+  font-weight  : 500 !important;
+  border-radius: var(--r-xs) !important;
+  padding      : 7px 16px !important;
+  transition   : all 0.15s !important;
+}
+[data-testid="stTabs"] button[role="tab"]:hover {
+  color     : var(--text-body) !important;
+  background: rgba(255,255,255,0.7) !important;
+}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+  background: var(--bg-surface) !important;
+  color     : var(--text-ink) !important;
+  font-weight: 600 !important;
+  box-shadow : var(--shadow-sm) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   EXPANDERS
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+  background   : var(--bg-surface) !important;
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow   : var(--shadow-xs) !important;
+  overflow     : hidden !important;
+  margin-bottom: var(--s3) !important;
+  transition   : box-shadow 0.2s, border-color 0.2s !important;
+}
+[data-testid="stExpander"]:hover {
+  box-shadow  : var(--shadow-md) !important;
+  border-color: var(--border-strong) !important;
+}
+[data-testid="stExpander"] summary {
+  background : var(--bg-surface) !important;
+  color      : var(--text-body) !important;
+  font-family: var(--font-sans) !important;
+  font-size  : 0.875rem !important;
+  font-weight: 500 !important;
+  padding    : 14px 20px !important;
+}
+[data-testid="stExpander"] summary:hover {
+  background: var(--stone-50) !important;
+  color     : var(--text-ink) !important;
+}
+[data-testid="stExpander"] summary svg { color: var(--accent) !important; }
+[data-testid="stExpander"] > div > div {
+  background: var(--bg-surface) !important;
+  border-top : 1px solid var(--border-faint) !important;
+  padding    : 16px 20px !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   DATA TABLE
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+  border       : 1px solid var(--border-base) !important;
+  border-radius: var(--r-lg) !important;
+  overflow     : hidden !important;
+  box-shadow   : var(--shadow-sm) !important;
+}
+[data-testid="stDataFrame"] table { background: white !important; }
+[data-testid="stDataFrame"] th {
+  background    : var(--stone-50) !important;
+  color         : var(--text-faint) !important;
+  font-family   : var(--font-sans) !important;
+  font-size     : 0.68rem !important;
+  font-weight   : 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.09em !important;
+  border-bottom : 1px solid var(--border-base) !important;
+  padding       : 10px 14px !important;
+}
+[data-testid="stDataFrame"] td {
+  color      : var(--text-body) !important;
+  font-family: var(--font-sans) !important;
+  font-size  : 0.84rem !important;
+  padding    : 9px 14px !important;
+  border-color: var(--border-faint) !important;
+}
+[data-testid="stDataFrame"] tr:hover td {
+  background: var(--gold-100) !important;
+  color     : var(--text-ink) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   ALERTS
+───────────────────────────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+  border-radius: var(--r-md) !important;
+  border-width : 1px !important;
+  font-family  : var(--font-sans) !important;
+  font-size    : 0.84rem !important;
+}
+[data-testid="stAlert"][kind="info"]    { background:var(--slate-50) !important;border-color:var(--slate-200) !important;color:var(--slate-700) !important; }
+[data-testid="stAlert"][kind="success"] { background:var(--sage-50)  !important;border-color:var(--sage-200)  !important;color:var(--sage-700)  !important; }
+[data-testid="stAlert"][kind="warning"] { background:var(--gold-100) !important;border-color:var(--border-gold) !important;color:var(--gold-700) !important; }
+[data-testid="stAlert"][kind="error"]   { background:var(--rose-50)  !important;border-color:var(--rose-200)  !important;color:var(--rose-700)  !important; }
+
+/* Captions */
+[data-testid="stCaptionContainer"] p,.stCaption,small {
+  color      : var(--text-faint) !important;
+  font-family: var(--font-sans) !important;
+  font-size  : 0.73rem !important;
+}
+
+/* Spinner */
+[data-testid="stSpinner"] p {
+  color      : var(--text-muted) !important;
+  font-size  : 0.84rem !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Charts */
+[data-testid="stImage"] img {
+  border-radius: var(--r-lg);
+  box-shadow   : var(--shadow-sm);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   ══ CUSTOM COMPONENTS ══
+───────────────────────────────────────────────────────────────────── */
+
+/* ── TOPBAR / MASTHEAD ─────────────────────────────────────────────── */
+.masthead {
+  display        : flex;
+  align-items    : center;
+  justify-content: space-between;
+  padding        : var(--s6) 0 var(--s5) 0;
+  border-bottom  : 1px solid var(--border-base);
+  margin-bottom  : 0;
+}
+.masthead-brand {
+  display    : flex;
+  align-items: baseline;
+  gap        : var(--s2);
+}
+.masthead-wordmark {
+  font-family   : var(--font-display);
+  font-size     : 1.6rem;
+  font-weight   : 600;
+  color         : var(--text-ink);
+  letter-spacing: -0.01em;
+  font-style    : italic;
+}
+.masthead-wordmark span { color: var(--accent); font-style: normal; }
+.masthead-rule {
+  width     : 1px;
+  height    : 18px;
+  background: var(--border-strong);
+  margin    : 0 var(--s3);
+  display   : inline-block;
+  vertical-align: middle;
+}
+.masthead-sub {
+  font-family   : var(--font-sans);
+  font-size     : 0.72rem;
+  font-weight   : 500;
+  color         : var(--text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.masthead-meta { display:flex; align-items:center; gap:var(--s3); }
+
+/* ── STATUS / CATEGORY PILLS ───────────────────────────────────────── */
+.pill {
+  display       : inline-flex;
+  align-items   : center;
+  gap           : 5px;
+  padding       : 4px 11px;
+  border-radius : var(--r-xs);
+  font-family   : var(--font-sans);
+  font-size     : 0.7rem;
+  font-weight   : 600;
+  letter-spacing: 0.03em;
+  white-space   : nowrap;
+}
+.pill-dot {
+  width : 5px; height: 5px;
+  border-radius: 50%;
+  background   : currentColor;
+}
+.pill-live    { background:var(--sage-50);  color:var(--sage-600);   border:1px solid var(--sage-200); }
+.pill-live .pill-dot { animation: liveblink 2s infinite; }
+.pill-fresh   { background:var(--sage-50);  color:var(--sage-600);   border:1px solid var(--sage-200); }
+.pill-stale   { background:var(--gold-100); color:var(--gold-700);   border:1px solid var(--border-gold); }
+.pill-old     { background:var(--rose-50);  color:var(--rose-600);   border:1px solid var(--rose-200); }
+.pill-unknown { background:var(--stone-100);color:var(--stone-500);  border:1px solid var(--border-base); }
+.pill-stone   { background:var(--stone-100);color:var(--stone-600);  border:1px solid var(--border-base); }
+.pill-gold    { background:var(--gold-100); color:var(--gold-700);   border:1px solid var(--border-gold); }
+.pill-slate   { background:var(--slate-50); color:var(--slate-600);  border:1px solid var(--slate-200); }
+.pill-rose    { background:var(--rose-50);  color:var(--rose-600);   border:1px solid var(--rose-200); }
+.pill-sage    { background:var(--sage-50);  color:var(--sage-600);   border:1px solid var(--sage-200); }
+
+@keyframes liveblink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+/* ── HERO BLOCK ────────────────────────────────────────────────────── */
+.hero {
+  padding       : var(--s16) 0 var(--s12) 0;
+  border-bottom : 1px solid var(--border-base);
+  margin-bottom : var(--s12);
+  display       : grid;
+  grid-template-columns: 1fr 320px;
+  gap           : var(--s8);
+  align-items   : end;
+}
+.hero-left {}
+.hero-eyebrow {
+  font-family   : var(--font-sans);
+  font-size     : 0.68rem;
+  font-weight   : 700;
+  color         : var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-bottom : var(--s4);
+  display       : flex;
+  align-items   : center;
+  gap           : var(--s3);
+}
+.hero-eyebrow::after {
+  content   : '';
+  width     : 32px; height: 1px;
+  background: var(--accent);
+  opacity   : 0.5;
+}
+.hero-title {
+  font-family   : var(--font-display) !important;
+  font-size     : 3.5rem !important;
+  font-weight   : 600 !important;
+  color         : var(--stone-900) !important;
+  letter-spacing: -0.025em !important;
+  line-height   : 1.02 !important;
+  margin        : 0 0 var(--s5) 0 !important;
+}
+.hero-title em {
+  font-style: italic;
+  color     : var(--accent);
+}
+.hero-desc {
+  font-size  : 1rem;
+  color      : var(--text-body);
+  line-height: 1.65;
+  max-width  : 540px;
+  margin     : 0 0 var(--s6) 0;
+}
+.hero-pills { display:flex; gap:var(--s2); flex-wrap:wrap; }
+.hero-right {
+  padding-bottom: var(--s2);
+}
+/* Stat cluster in hero */
+.hero-stat-cluster {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-xl);
+  padding      : var(--s6) var(--s7);
+  box-shadow   : var(--shadow-md);
+  position     : relative;
+  overflow     : hidden;
+}
+.hero-stat-cluster::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;right:0;height:2px;
+  background: linear-gradient(90deg,
+    var(--gold-400) 0%,
+    var(--gold-300) 60%,
+    transparent 100%);
+}
+.hsc-row {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  padding        : var(--s3) 0;
+  border-bottom  : 1px solid var(--border-faint);
+}
+.hsc-row:last-child { border-bottom:none; padding-bottom:0; }
+.hsc-row:first-child { padding-top:0; }
+.hsc-label {
+  font-size     : 0.72rem;
+  font-weight   : 600;
+  color         : var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hsc-value {
+  font-family: var(--font-mono);
+  font-size  : 1.3rem;
+  font-weight: 400;
+  color      : var(--text-ink);
+  letter-spacing: -0.02em;
+}
+.hsc-delta {
+  font-size  : 0.7rem;
+  font-weight: 500;
+  padding    : 2px 7px;
+  border-radius: var(--r-xs);
+}
+.hsc-delta-up   { background:var(--sage-50); color:var(--sage-600); }
+.hsc-delta-down { background:var(--rose-50); color:var(--rose-600); }
+
+/* ── SECTION DIVIDER ──────────────────────────────────────────────── */
+.sec-divider {
+  display    : flex;
+  align-items: center;
+  gap        : var(--s4);
+  margin     : var(--s12) 0 var(--s8) 0;
+}
+.sec-divider::before,
+.sec-divider::after {
+  content   : '';
+  flex      : 1;
+  height    : 1px;
+  background: var(--border-base);
+}
+.sec-divider-inner {
+  display    : flex;
+  align-items: center;
+  gap        : var(--s3);
+  white-space: nowrap;
+}
+.sec-num {
+  font-family   : var(--font-mono);
+  font-size     : 0.65rem;
+  font-weight   : 500;
+  color         : var(--text-faint);
+  letter-spacing: 0.08em;
+}
+.sec-name {
+  font-family   : var(--font-sans);
+  font-size     : 0.68rem;
+  font-weight   : 700;
+  color         : var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* ── SECTION HEADER ───────────────────────────────────────────────── */
+.sec-head {
+  margin-bottom: var(--s6);
+}
+.sec-head-title {
+  font-family   : var(--font-sans);
+  font-size     : 1.35rem;
+  font-weight   : 700;
+  color         : var(--text-ink);
+  letter-spacing: -0.02em;
+  margin        : 0 0 var(--s2) 0;
+}
+.sec-head-sub {
+  font-size  : 0.875rem;
+  color      : var(--text-muted);
+  line-height: 1.5;
+  font-weight: 400;
+  margin     : 0;
+}
+
+/* ── SURFACE CARD ─────────────────────────────────────────────────── */
+.surface {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-lg);
+  padding      : var(--s6) var(--s8);
+  box-shadow   : var(--shadow-sm);
+  transition   : box-shadow 0.2s, border-color 0.2s;
+}
+.surface:hover { box-shadow:var(--shadow-md); }
+.surface-sm    { padding: var(--s5) var(--s6); }
+
+/* accent bar */
+.surface-gold::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;width:3px;bottom:0;
+  background: linear-gradient(180deg,var(--gold-400),var(--gold-200));
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+.surface-sage::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;width:3px;bottom:0;
+  background: linear-gradient(180deg,var(--sage-400),var(--sage-200));
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+.surface-slate::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;width:3px;bottom:0;
+  background: linear-gradient(180deg,var(--slate-400),var(--slate-200));
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+
+/* ── FIELD LABEL (inline) ─────────────────────────────────────────── */
+.field-label {
+  font-family   : var(--font-sans);
+  font-size     : 0.65rem;
+  font-weight   : 700;
+  color         : var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom : var(--s2);
+}
+
+/* ── TREND BADGES ─────────────────────────────────────────────────── */
+.trend-up {
+  display    : inline-flex; align-items: center; gap: 4px;
+  padding    : 4px 10px; border-radius: var(--r-xs);
+  background : var(--sage-50); color: var(--sage-600);
+  border     : 1px solid var(--sage-200);
+  font-family: var(--font-sans); font-size: 0.73rem; font-weight: 600;
+}
+.trend-down {
+  display    : inline-flex; align-items: center; gap: 4px;
+  padding    : 4px 10px; border-radius: var(--r-xs);
+  background : var(--rose-50); color: var(--rose-600);
+  border     : 1px solid var(--rose-200);
+  font-family: var(--font-sans); font-size: 0.73rem; font-weight: 600;
+}
+.trend-stable {
+  display    : inline-flex; align-items: center; gap: 4px;
+  padding    : 4px 10px; border-radius: var(--r-xs);
+  background : var(--stone-100); color: var(--stone-500);
+  border     : 1px solid var(--border-base);
+  font-family: var(--font-sans); font-size: 0.73rem; font-weight: 600;
+}
+
+/* ── DATA ROW ─────────────────────────────────────────────────────── */
+.drow {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  padding        : 9px 0;
+  border-bottom  : 1px solid var(--border-faint);
+  transition     : all 0.12s;
+}
+.drow:last-child  { border-bottom: none; }
+.drow:hover       { padding-left:6px; padding-right:6px;
+                    margin:0 -6px; border-radius:var(--r-xs);
+                    background:var(--gold-100); }
+.drow-label       { font-size:0.84rem; color:var(--text-body); }
+.drow-value       { font-family:var(--font-mono); font-size:0.78rem;
+                    font-weight:500; color:var(--stone-700); }
+.drow-sub         { font-size:0.7rem; color:var(--text-faint); margin-left:5px; }
+
+/* ── MINI PROGRESS BAR ────────────────────────────────────────────── */
+.mbar { margin-bottom: 14px; }
+.mbar-head {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  margin-bottom  : 6px;
+}
+.mbar-lbl { font-size:0.82rem; color:var(--text-body); font-weight:400; }
+.mbar-pct { font-family:var(--font-mono); font-size:0.72rem; color:var(--text-faint); font-weight:500; }
+.mbar-track { background:var(--stone-100); border-radius:99px; height:5px; overflow:hidden; }
+.mbar-fill  { height:100%; border-radius:99px; transition:width 0.5s ease; }
+
+/* ── TAGS ─────────────────────────────────────────────────────────── */
+.tag {
+  display      : inline-block;
+  padding      : 3px 10px;
+  border-radius: var(--r-xs);
+  font-family  : var(--font-sans);
+  font-size    : 0.72rem;
+  font-weight  : 600;
+  margin       : 3px;
+  letter-spacing: 0.01em;
+  transition   : all 0.15s;
+  cursor       : default;
+}
+.tag:hover { transform:translateY(-1px); box-shadow:var(--shadow-sm); }
+.tag-sage  { background:var(--sage-50);  color:var(--sage-700);   border:1px solid var(--sage-200); }
+.tag-rose  { background:var(--rose-50);  color:var(--rose-700);   border:1px solid var(--rose-200); }
+.tag-gold  { background:var(--gold-100); color:var(--gold-700);   border:1px solid var(--border-gold); }
+.tag-slate { background:var(--slate-50); color:var(--slate-700);  border:1px solid var(--slate-200); }
+.tag-stone { background:var(--stone-100);color:var(--stone-600);  border:1px solid var(--border-base); }
+
+/* ── COMPANY CARD ─────────────────────────────────────────────────── */
+.company-card {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-xl);
+  padding      : var(--s8) var(--s10);
+  box-shadow   : var(--shadow-md);
+  margin-top   : var(--s5);
+  position     : relative;
+  overflow     : hidden;
+}
+.company-card::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;right:0;height:2px;
+  background: linear-gradient(90deg,
+    var(--gold-400) 0%,
+    var(--gold-200) 50%,
+    transparent 100%);
+}
+.co-name {
+  font-family   : var(--font-sans);
+  font-size     : 1.4rem;
+  font-weight   : 700;
+  color         : var(--text-ink);
+  letter-spacing: -0.02em;
+  margin        : 0 0 3px 0;
+}
+.co-meta { font-size:0.84rem; color:var(--text-faint); }
+
+/* ── SCORE RING ───────────────────────────────────────────────────── */
+.score-ring {
+  width          : 144px;
+  height         : 144px;
+  border-radius  : 50%;
+  border         : 2px solid;
+  display        : flex;
+  flex-direction : column;
+  align-items    : center;
+  justify-content: center;
+  margin         : 0 auto 12px auto;
+  position       : relative;
+  box-shadow     : var(--shadow-lg);
+  background     : var(--bg-surface);
+}
+.score-ring::before {
+  content     : '';
+  position    : absolute;
+  inset       : -7px;
+  border-radius: 50%;
+  border      : 1px solid;
+  border-color: inherit;
+  opacity     : 0.18;
+}
+.score-num { font-family:var(--font-mono); font-size:2.4rem; font-weight:400; line-height:1; }
+.score-lbl { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-top:3px; opacity:0.65; }
+
+/* ── SALARY RESULT ────────────────────────────────────────────────── */
+.salary-result {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-xl);
+  padding      : var(--s8) var(--s10);
+  box-shadow   : var(--shadow-lg);
+  margin-top   : var(--s6);
+  position     : relative;
+  overflow     : hidden;
+}
+.salary-result::before {
+  content  : '';
+  position : absolute;
+  top:0;left:0;right:0;height:2px;
+  background: linear-gradient(90deg,
+    var(--gold-500),var(--gold-300),var(--sage-400));
+}
+.sal-eyebrow {
+  font-family   : var(--font-sans);
+  font-size     : 0.65rem;
+  font-weight   : 700;
+  color         : var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.sal-role {
+  font-family: var(--font-sans);
+  font-size  : 1rem;
+  font-weight: 600;
+  color      : var(--text-ink);
+  margin-top : 4px;
+  letter-spacing: -0.01em;
+}
+.sal-conf {
+  display      : inline-flex;
+  align-items  : center;
+  padding      : 4px 12px;
+  border-radius: var(--r-xs);
+  font-size    : 0.7rem;
+  font-weight  : 700;
+  letter-spacing: 0.04em;
+}
+.sal-bar-track {
+  background   : var(--stone-100);
+  border-radius: 99px;
+  height       : 7px;
+  margin       : var(--s6) 0 var(--s2) 0;
+  overflow     : hidden;
+}
+.sal-bar-fill {
+  height       : 100%;
+  border-radius: 99px;
+  background   : linear-gradient(90deg,var(--gold-500),var(--gold-300),var(--sage-400));
+  transition   : width 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+.sal-scale {
+  display        : flex;
+  justify-content: space-between;
+  font-family    : var(--font-mono);
+  font-size      : 0.65rem;
+  color          : var(--text-faint);
+}
+
+/* ── FORM SURFACE ─────────────────────────────────────────────────── */
+.form-surface {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-xl);
+  padding      : var(--s8) var(--s10);
+  box-shadow   : var(--shadow-sm);
+}
+.form-sep {
+  display      : flex;
+  align-items  : center;
+  gap          : var(--s3);
+  margin       : var(--s6) 0 var(--s4) 0;
+  font-family  : var(--font-sans);
+  font-size    : 0.65rem;
+  font-weight  : 700;
+  color        : var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.form-sep::before,.form-sep::after {
+  content: ''; flex:1; height:1px; background:var(--border-base);
+}
+
+/* ── AI CALLOUT ───────────────────────────────────────────────────── */
+.ai-result {
+  background   : linear-gradient(135deg,var(--gold-100) 0%,var(--stone-50) 100%);
+  border       : 1px solid var(--border-gold);
+  border-radius: var(--r-lg);
+  padding      : var(--s6) var(--s7);
+  margin-top   : var(--s4);
+}
+.ai-text {
+  font-size  : 0.9rem;
+  color      : var(--stone-800);
+  line-height: 1.75;
+}
+
+/* ── EMPTY STATE ──────────────────────────────────────────────────── */
+.empty {
+  border       : 1.5px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  padding      : var(--s12) var(--s8);
+  text-align   : center;
+  background   : var(--stone-25);
+}
+.empty-icon { font-size:1.8rem; margin-bottom:var(--s3); opacity:0.35; }
+.empty-txt  { font-size:0.84rem; color:var(--text-faint); font-weight:500; }
+
+/* ── EXPORT CARD ──────────────────────────────────────────────────── */
+.export-card {
+  background   : var(--bg-surface);
+  border       : 1px solid var(--border-base);
+  border-radius: var(--r-xl);
+  padding      : var(--s8);
+  box-shadow   : var(--shadow-sm);
+  height       : 100%;
+  transition   : box-shadow 0.2s, border-color 0.2s;
+}
+.export-card:hover {
+  box-shadow  : var(--shadow-lg);
+  border-color: var(--border-gold);
+}
+.export-icon-box {
+  width        : 38px;
+  height       : 38px;
+  border-radius: var(--r-sm);
+  display      : flex;
+  align-items  : center;
+  justify-content: center;
+  font-size    : 16px;
+  margin-bottom: var(--s4);
+  border       : 1px solid var(--border-base);
+  background   : var(--stone-50);
+}
+.export-title { font-size:1rem; font-weight:700; color:var(--text-ink); margin:0 0 6px 0; letter-spacing:-0.01em; }
+.export-desc  { font-size:0.8rem; color:var(--text-faint); margin:0 0 var(--s5) 0; line-height:1.55; }
+
+/* ── FOOTER ───────────────────────────────────────────────────────── */
+.footer {
+  display        : flex;
+  align-items    : center;
+  justify-content: space-between;
+  padding        : var(--s6) 0 var(--s8) 0;
+  border-top     : 1px solid var(--border-base);
+  margin-top     : var(--s12);
+}
+.footer-brand {
+  font-family: var(--font-display);
+  font-size  : 1.05rem;
+  font-weight: 600;
+  font-style : italic;
+  color      : var(--text-ink);
+}
+.footer-brand span { color:var(--accent); font-style:normal; }
+.footer-meta { font-size:0.72rem; color:var(--text-faint); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.fade-in { animation: fadeUp 0.4s ease both; }
+</style>
+""", unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# DATA LOADING
-# ═══════════════════════════════════════════════════════════════════════════
-
+# ══════════════════════════════════════════════════════════════════════════
+#  DATA
+# ══════════════════════════════════════════════════════════════════════════
 raw_df = load_data()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# SIDEBAR
-# ═══════════════════════════════════════════════════════════════════════════
-
+# ══════════════════════════════════════════════════════════════════════════
+#  SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.image(
-        "https://img.icons8.com/fluency/96/parse-from-clipboard.png",
-        width=48,
-    )
-    st.title("JobSeekAI")
-    st.caption("Bangladesh Job Market Intelligence")
-    st.markdown("---")
-    st.subheader("🔎 Filters")
+    st.markdown("""
+    <div style="margin-bottom:28px;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.45rem;
+                  font-weight:600;font-style:italic;color:#1a1814;letter-spacing:-0.01em;
+                  margin-bottom:3px;">
+        JobSeek<span style="color:#c9a84c;font-style:normal;">AI</span>
+      </div>
+      <div style="font-family:'Outfit',sans-serif;font-size:0.65rem;font-weight:700;
+                  color:#a8a398;text-transform:uppercase;letter-spacing:0.14em;">
+        BD Market Intelligence
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<hr style="border-color:#e5e2da;margin:0 0 22px 0;">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <p style="font-family:'Outfit',sans-serif;font-size:0.65rem;font-weight:700;
+              color:#a8a398;text-transform:uppercase;letter-spacing:0.12em;
+              margin-bottom:14px;">Filter Data</p>
+    """, unsafe_allow_html=True)
 
     options = get_filter_options(raw_df)
+    sel_industries = st.multiselect("Industry",  options=options["industry"],  default=[])
+    sel_roles      = st.multiselect("Job Role",  options=options["job_title"], default=[])
+    sel_locations  = st.multiselect("Location",  options=options["location"],  default=[])
 
-    sel_industries = st.multiselect(
-        "Industry", options=options["industry"], default=[],
-        help="Leave empty to include all industries.",
-    )
-    sel_roles = st.multiselect(
-        "Job Role", options=options["job_title"], default=[],
-        help="Leave empty to include all roles.",
-    )
-    sel_locations = st.multiselect(
-        "Location", options=options["location"], default=[],
-        help="Leave empty to include all locations.",
-    )
+    st.markdown('<hr style="border-color:#e5e2da;margin:22px 0;">', unsafe_allow_html=True)
 
-    st.markdown("---")
-    if st.button("🔄 Reset Filters", use_container_width=True):
+    if st.button("↺  Reset All Filters", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-    st.markdown("---")
-    st.caption(f"Dataset: **{len(raw_df)}** postings loaded")
-    st.caption("🔄 Data refreshes every hour from BDJobs")
+    st.markdown('<hr style="border-color:#e5e2da;margin:22px 0 14px 0;">', unsafe_allow_html=True)
 
-
-# Apply filters
-df = apply_filters(raw_df, sel_industries, sel_roles, sel_locations)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# HERO BANNER
-# ═══════════════════════════════════════════════════════════════════════════
-
-freshness   = get_data_freshness(raw_df)
-badge_class = f"badge-{freshness['status']}"
-badge_text  = f"{freshness['emoji']} Data last updated: {freshness['last_updated']}"
-
-st.markdown(
-    f"""
-    <div class="hero-banner">
-        <h1>📊 JobSeekAI — Bangladesh Job Market</h1>
-        <p>Live analytics on job demand, hiring trends, and AI-powered
-        market intelligence — scraped daily from BDJobs.com</p>
-        <div class="freshness-badge {badge_class}">{badge_text}</div>
+    st.markdown(f"""
+    <div style="font-family:'Outfit',sans-serif;font-size:0.72rem;color:#a8a398;line-height:2.1;">
+      <div>
+        <span style="font-family:'DM Mono',monospace;color:#c9a84c;font-weight:500;">
+          {len(raw_df):,}
+        </span> postings indexed
+      </div>
+      <div>Syncs every <span style="color:#c9a84c;">60 min</span></div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-if df.empty:
-    st.warning(
-        "No postings match your current filter selection. "
-        "Try broadening your criteria or resetting filters."
-    )
-    st.stop()
+    """, unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# KEY METRICS
-# ═══════════════════════════════════════════════════════════════════════════
-
+df = apply_filters(raw_df, sel_industries, sel_roles, sel_locations)
+freshness     = get_data_freshness(raw_df)
 delta_jobs    = get_delta_jobs(raw_df)
 jobs_today    = get_jobs_today(raw_df)
 new_cos_today = get_new_companies_today(raw_df)
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric(
-        "📋 Total Postings", f"{len(df):,}",
-        delta      = f"+{jobs_today} today" if jobs_today > 0 else "No new jobs today",
-        delta_color= "normal" if jobs_today > 0 else "off",
-    )
-with col2:
-    st.metric(
-        "🏢 Unique Companies", f"{df['company'].nunique():,}",
-        delta      = f"+{new_cos_today} new today" if new_cos_today > 0 else None,
-        delta_color= "normal",
-    )
-with col3:
-    st.metric("🏭 Industries", f"{df['industry'].nunique()}")
-with col4:
-    st.metric("📍 Locations",  f"{df['location'].nunique()}")
 
-if delta_jobs > 0:
-    st.success(f"📈 **{delta_jobs} more jobs posted today** compared to yesterday.")
-elif delta_jobs < 0:
-    st.info(f"📉 **{abs(delta_jobs)} fewer jobs posted today** compared to yesterday.")
+# ══════════════════════════════════════════════════════════════════════════
+#  MASTHEAD
+# ══════════════════════════════════════════════════════════════════════════
+badge_cls = f"pill-{freshness['status']}"
 
-st.markdown("---")
+st.markdown(f"""
+<div class="masthead fade-in">
+  <div class="masthead-brand">
+    <span class="masthead-wordmark">JobSeek<span>AI</span></span>
+    <span class="masthead-rule"></span>
+    <span class="masthead-sub">Bangladesh Job Market Platform</span>
+  </div>
+  <div class="masthead-meta">
+    <span class="pill pill-live">
+      <span class="pill-dot"></span> Live
+    </span>
+    <span class="pill {badge_cls}">{freshness['emoji']} {freshness['last_updated']}</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 1  MARKET OVERVIEW
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  HERO  — above the fold, screenshot zone
+# ══════════════════════════════════════════════════════════════════════════
+if df.empty:
+    st.warning("No postings match your filters. Try resetting.")
+    st.stop()
 
-st.header("🏢 Market Overview")
-col_left, col_right = st.columns(2)
-with col_left:
-    st.pyplot(plot_industry_distribution(df))
-with col_right:
-    st.pyplot(plot_location_distribution(df))
-st.markdown("---")
+delta_sign = "+" if delta_jobs >= 0 else ""
+delta_cls  = "hsc-delta-up" if delta_jobs >= 0 else "hsc-delta-down"
+
+st.markdown(f"""
+<div class="hero fade-in">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Live Market Intelligence</div>
+    <h1 class="hero-title">Where Bangladesh<br>is <em>hiring</em> today</h1>
+    <p class="hero-desc">
+      Real-time analytics on hiring demand, salary benchmarks,
+      skill gaps, and company intelligence — scraped daily from BDJobs.com
+      and enriched by AI.
+    </p>
+    <div class="hero-pills">
+      <span class="pill pill-stone">BDJobs.com</span>
+      <span class="pill pill-gold">AI-Powered</span>
+      <span class="pill pill-slate">Daily Scrape</span>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-stat-cluster">
+      <div class="hsc-row">
+        <span class="hsc-label">Total Postings</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="hsc-value">{len(df):,}</span>
+          <span class="hsc-delta {delta_cls}">{delta_sign}{delta_jobs}d</span>
+        </div>
+      </div>
+      <div class="hsc-row">
+        <span class="hsc-label">Companies Hiring</span>
+        <span class="hsc-value">{df['company'].nunique():,}</span>
+      </div>
+      <div class="hsc-row">
+        <span class="hsc-label">Industries Active</span>
+        <span class="hsc-value">{df['industry'].nunique()}</span>
+      </div>
+      <div class="hsc-row">
+        <span class="hsc-label">Cities Covered</span>
+        <span class="hsc-value">{df['location'].nunique()}</span>
+      </div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# KPI row
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("Total Postings",    f"{len(df):,}",
+              delta=f"+{jobs_today} today" if jobs_today > 0 else "—",
+              delta_color="normal" if jobs_today > 0 else "off")
+with c2:
+    st.metric("Hiring Companies",  f"{df['company'].nunique():,}",
+              delta=f"+{new_cos_today} new" if new_cos_today > 0 else None,
+              delta_color="normal")
+with c3:
+    st.metric("Industries Active", f"{df['industry'].nunique()}")
+with c4:
+    st.metric("Cities Covered",    f"{df['location'].nunique()}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 2  TOP HIRING COMPANIES
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 01  MARKET OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">01</span>
+    <span class="sec-name">Market Overview</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Industry & Location Distribution</p>
+  <p class="sec-head-sub">How active job demand spreads across sectors and geographies</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("🏆 Top Hiring Companies")
+cl, cr = st.columns(2)
+with cl: st.pyplot(plot_industry_distribution(df))
+with cr: st.pyplot(plot_location_distribution(df))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  § 02  TOP HIRING COMPANIES
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">02</span>
+    <span class="sec-name">Hiring Leaders</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Top Hiring Companies</p>
+  <p class="sec-head-sub">Organisations with the highest volume of live postings</p>
+</div>
+""", unsafe_allow_html=True)
+
 st.pyplot(plot_top_companies(df, top_n=12))
-st.markdown("---")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 3  POSTING TREND
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 03  POSTING TREND
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">03</span>
+    <span class="sec-name">Temporal Analysis</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Posting Trend</p>
+  <p class="sec-head-sub">Daily posting volume — spotting acceleration and slowdowns</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("📈 Posting Trend")
 fig_trend = plot_posting_trend(df)
 if fig_trend:
     st.pyplot(fig_trend)
 else:
-    st.info("Trend data will appear after multiple days of scraping.")
-st.markdown("---")
+    st.markdown("""
+    <div class="empty">
+      <div class="empty-icon">📈</div>
+      <p class="empty-txt">Trend chart appears after multiple days of data collection</p>
+    </div>""", unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 4  JOB LISTINGS TABLE
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 04  LIVE FEED
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">04</span>
+    <span class="sec-name">Live Feed</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Active Job Listings</p>
+  <p class="sec-head-sub">All postings matching your current filter selection</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("📋 Recent Job Listings")
-
-display_cols = ["job_title", "company", "industry", "location"]
-if "date_scraped" in df.columns:
-    display_cols.append("date_scraped")
+display_cols = ["job_title","company","industry","location"]
+if "date_scraped" in df.columns: display_cols.append("date_scraped")
 
 st.dataframe(
     df[display_cols].rename(columns={
-        "job_title":    "Job Title",
-        "company":      "Company",
-        "industry":     "Industry",
-        "location":     "Location",
-        "date_scraped": "Posted",
+        "job_title":"Job Title","company":"Company",
+        "industry":"Industry","location":"Location","date_scraped":"Posted",
     }),
-    use_container_width=True,
-    hide_index=True,
-    height=400,
-)
-st.markdown("---")
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# § 5  EDUCATION & EXPERIENCE ANALYTICS
-# ═══════════════════════════════════════════════════════════════════════════
-
-st.header("🎓 Education & Experience Analytics")
-st.markdown(
-    "Deep-dive into what qualifications and experience levels "
-    "the Bangladesh job market is demanding right now."
+    use_container_width=True, hide_index=True, height=420,
 )
 
-tab_deg, tab_exp, tab_heat = st.tabs([
-    "📜 Degree Demand",
-    "💼 Experience Levels",
-    "🔥 Industry × Education Heatmap",
-])
 
-with tab_deg:
-    degree_counts = get_degree_counts(df)
-    if degree_counts.empty:
-        st.info("No degree data found yet. Populates once the scraper collects "
-                "education keywords such as BSc, MBA, Diploma etc.")
+# ══════════════════════════════════════════════════════════════════════════
+#  § 05  EDUCATION & EXPERIENCE
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">05</span>
+    <span class="sec-name">Qualification Intelligence</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Education & Experience Demand</p>
+  <p class="sec-head-sub">What qualifications and seniority levels the market is asking for</p>
+</div>
+""", unsafe_allow_html=True)
+
+t1, t2, t3 = st.tabs(["Degree Demand", "Experience Levels", "Industry × Education"])
+
+with t1:
+    dc = get_degree_counts(df)
+    if dc.empty:
+        st.markdown('<div class="empty"><div class="empty-icon">🎓</div><p class="empty-txt">No degree data yet</p></div>', unsafe_allow_html=True)
     else:
-        fig_deg = plot_degree_demand(degree_counts)
-        if fig_deg:
-            st.pyplot(fig_deg)
-        top_deg = degree_counts.iloc[0]
-        st.success(
-            f"🏆 **Most demanded:** {top_deg['Degree']} — "
-            f"**{top_deg['Count']}** postings "
-            f"({top_deg['Count']/len(df)*100:.1f}% of filtered jobs)"
-        )
-        with st.expander("📊 Full degree breakdown"):
-            st.dataframe(degree_counts, use_container_width=True, hide_index=True)
+        st.pyplot(plot_degree_demand(dc))
+        top = dc.iloc[0]
+        st.success(f"Most demanded: **{top['Degree']}** — {top['Count']} postings ({top['Count']/len(df)*100:.1f}%)")
+        with st.expander("View full breakdown"):
+            st.dataframe(dc, use_container_width=True, hide_index=True)
 
-with tab_exp:
-    exp_counts = get_experience_level_counts(df)
-    if exp_counts.empty or exp_counts["Count"].sum() == 0:
-        st.info("No experience-level data found yet.")
+with t2:
+    ec = get_experience_level_counts(df)
+    if ec.empty or ec["Count"].sum() == 0:
+        st.markdown('<div class="empty"><div class="empty-icon">💼</div><p class="empty-txt">No experience data yet</p></div>', unsafe_allow_html=True)
     else:
-        fig_exp_lvl = plot_experience_levels(exp_counts)
-        if fig_exp_lvl:
-            st.pyplot(fig_exp_lvl)
-        total_exp = exp_counts["Count"].sum()
-        for _, row in exp_counts.iterrows():
-            pct  = row["Count"] / total_exp * 100
-            icon = ("🟢" if row["Level"].startswith("Entry") else
-                    "🔵" if row["Level"].startswith("Mid") else "🟣")
-            st.caption(f"{icon} **{row['Level']}** — {row['Count']} jobs ({pct:.1f}%)")
-        with st.expander("📊 Experience level table"):
-            st.dataframe(exp_counts, use_container_width=True, hide_index=True)
+        st.pyplot(plot_experience_levels(ec))
+        tot = ec["Count"].sum()
+        for _, row in ec.iterrows():
+            pct = row["Count"]/tot*100
+            ic = "🟡" if row["Level"].startswith("Entry") else ("🔵" if row["Level"].startswith("Mid") else "🟣")
+            st.caption(f"{ic}  **{row['Level']}** — {row['Count']} jobs ({pct:.1f}%)")
+        with st.expander("View table"):
+            st.dataframe(ec, use_container_width=True, hide_index=True)
 
-with tab_heat:
-    matrix = get_industry_education_matrix(df)
-    if matrix.empty:
-        st.info("Not enough data yet for the cross-analysis heatmap.")
+with t3:
+    mx = get_industry_education_matrix(df)
+    if mx.empty:
+        st.markdown('<div class="empty"><div class="empty-icon">🔥</div><p class="empty-txt">Insufficient cross-reference data yet</p></div>', unsafe_allow_html=True)
     else:
-        st.markdown("Each cell = job postings requiring that degree in that industry. "
-                    "**Darker = more demand.**")
-        fig_heat = plot_industry_education_heatmap(matrix)
-        if fig_heat:
-            st.pyplot(fig_heat)
-        with st.expander("📊 Raw heatmap data"):
-            st.dataframe(matrix, use_container_width=True)
-
-st.markdown("---")
+        st.caption("Darker = more postings requiring that degree in that industry")
+        st.pyplot(plot_industry_education_heatmap(mx))
+        with st.expander("View raw matrix"):
+            st.dataframe(mx, use_container_width=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 6  COMPANY INTELLIGENCE CARDS  ◄─ NEW FEATURE
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 06  COMPANY INTELLIGENCE
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">06</span>
+    <span class="sec-name">Company Intelligence</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Company Hiring Profiles</p>
+  <p class="sec-head-sub">Deep-dive into any company — open roles, locations, experience mix, and weekly trend</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("🏢 Company Intelligence")
-st.markdown(
-    "Select any company to see a full hiring profile — open roles, "
-    "locations, experience demand, and whether they're hiring more or less "
-    "than last week."
-)
-
-# ── Quick-access buttons for top 8 companies ──────────────────────────────
-top_cos = get_top_companies_list(df, n=8)
-
-st.markdown("**⚡ Quick View — Top Hiring Companies:**")
-
-# Use session state to track which company is selected
 if "selected_company" not in st.session_state:
     st.session_state.selected_company = None
 
-# Render one button per top company in a single row
+top_cos = get_top_companies_list(df, n=8)
+st.markdown("""
+<p style="font-family:'Outfit',sans-serif;font-size:0.65rem;font-weight:700;
+          color:#a8a398;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:10px;">
+  Quick select — top 8</p>
+""", unsafe_allow_html=True)
+
 btn_cols = st.columns(len(top_cos))
 for i, co in enumerate(top_cos):
     with btn_cols[i]:
         if st.button(co, key=f"qbtn_{i}", use_container_width=True):
             st.session_state.selected_company = co
 
-# ── Full company search dropdown ───────────────────────────────────────────
 all_companies = sorted(df["company"].dropna().unique().tolist())
+sel_dd = st.selectbox("Search any company",
+                      ["— Search a company —"] + all_companies,
+                      index=0, key="company_dropdown")
+if not sel_dd.startswith("—"):
+    st.session_state.selected_company = sel_dd
 
-selected_from_dropdown = st.selectbox(
-    "🔍 Or search any company:",
-    options = ["— Search a company —"] + all_companies,
-    index   = 0,
-    key     = "company_dropdown",
-)
-
-if not selected_from_dropdown.startswith("—"):
-    st.session_state.selected_company = selected_from_dropdown
-
-# ── Render company intelligence card ──────────────────────────────────────
 if st.session_state.selected_company:
     company = st.session_state.selected_company
     intel   = get_company_intel(company, df)
@@ -527,752 +1530,555 @@ if st.session_state.selected_company:
     if intel.get("error"):
         st.error(intel["error"])
     else:
-        # Trend badge HTML
         trend = intel["trend"]
         if trend == "up":
-            trend_html = (
-                f'<span class="trend-up">📈 Hiring Up '
-                f'+{intel["trend_delta"]} this week</span>'
-            )
+            t_html = f'<span class="trend-up">↑ +{intel["trend_delta"]} this week</span>'
         elif trend == "down":
-            trend_html = (
-                f'<span class="trend-down">📉 Hiring Down '
-                f'-{intel["trend_delta"]} this week</span>'
-            )
+            t_html = f'<span class="trend-down">↓ −{intel["trend_delta"]} this week</span>'
         elif trend == "stable":
-            trend_html = '<span class="trend-stable">➡️ Stable Hiring</span>'
+            t_html = '<span class="trend-stable">→ Stable</span>'
         else:
-            trend_html = '<span class="trend-stable">📊 Trend data unavailable</span>'
+            t_html = '<span class="trend-stable">· No trend data</span>'
 
-        # ── Company header ─────────────────────────────────────────────────
-        st.markdown(
-            f"""
-            <div style="margin-top:20px; padding:24px 28px;
-                        background:#ffffff; border:1px solid #e2e8f0;
-                        border-radius:16px;
-                        box-shadow:0 4px 20px rgba(37,99,235,0.08);">
-                <div style="display:flex; justify-content:space-between;
-                            align-items:flex-start; flex-wrap:wrap; gap:12px;">
-                    <div>
-                        <p class="company-name">🏢 {company}</p>
-                        <p class="company-meta">
-                            {", ".join(intel["industries"])} &nbsp;·&nbsp;
-                            {intel["total_openings"]} open position
-                            {"s" if intel["total_openings"] != 1 else ""}
-                        </p>
-                    </div>
-                    <div>{trend_html}</div>
-                </div>
+        st.markdown(f"""
+        <div class="company-card fade-in">
+          <div style="display:flex;justify-content:space-between;
+                      align-items:flex-start;flex-wrap:wrap;gap:14px;">
+            <div>
+              <p class="co-name">{company}</p>
+              <p class="co-meta">{" · ".join(intel["industries"])}</p>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              {t_html}
+              <span class="pill pill-stone" style="font-family:'DM Mono',monospace;">
+                {intel["total_openings"]} open
+              </span>
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("")
+        k1,k2,k3,k4 = st.columns(4)
+        k1.metric("Open Positions", intel["total_openings"])
+        k2.metric("Top Role", (intel["top_role"][:22]+"…") if len(intel["top_role"])>22 else intel["top_role"])
+        k3.metric("Primary Location", intel["top_location"])
+        k4.metric("Sectors", len(intel["industries"]))
 
-        # ── Four KPI metrics ───────────────────────────────────────────────
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("📋 Open Positions",  intel["total_openings"])
-        k2.metric("🎯 Top Role",        intel["top_role"])
-        k3.metric("📍 Primary Location",intel["top_location"])
-        k4.metric("🏭 Industries",      len(intel["industries"]))
+        if trend == "up":
+            st.success(f"↑  {company} posted {intel['recent_count']} jobs this week — up from {intel['prev_count']} last week")
+        elif trend == "down":
+            st.warning(f"↓  {company} posted {intel['recent_count']} jobs this week — down from {intel['prev_count']} last week")
+        elif trend == "stable":
+            st.info(f"→  {intel['recent_count']} jobs posted this week — consistent with last week")
 
-        # Trend comparison if date data available
-        if intel["trend"] != "unknown":
-            st.markdown("")
-            if intel["trend"] == "up":
-                st.success(
-                    f"📈 **{company}** posted **{intel['recent_count']} jobs** "
-                    f"in the last 7 days, up from **{intel['prev_count']}** "
-                    f"the week before."
-                )
-            elif intel["trend"] == "down":
-                st.warning(
-                    f"📉 **{company}** posted **{intel['recent_count']} jobs** "
-                    f"in the last 7 days, down from **{intel['prev_count']}** "
-                    f"the week before."
-                )
-            else:
-                st.info(
-                    f"➡️ **{company}** posted **{intel['recent_count']} jobs** "
-                    f"this week — same as last week."
-                )
+        st.markdown('<hr style="margin:24px 0 20px 0;">', unsafe_allow_html=True)
 
-        st.markdown("---")
+        c_roles, c_locs, c_exp = st.columns(3)
 
-        # ── Three detail columns ───────────────────────────────────────────
-        col_roles, col_locs, col_exp = st.columns(3)
+        with c_roles:
+            st.markdown('<p class="field-label">Roles Hiring</p>', unsafe_allow_html=True)
+            for _, row in intel["role_breakdown"].iterrows():
+                pct = row["Count"] / intel["total_openings"] * 100
+                st.markdown(f"""
+                <div class="drow">
+                  <span class="drow-label">{str(row["Role"])[:34]}</span>
+                  <span>
+                    <span class="drow-value">{int(row["Count"])}</span>
+                    <span class="drow-sub">({pct:.0f}%)</span>
+                  </span>
+                </div>""", unsafe_allow_html=True)
 
-        with col_roles:
-            st.markdown("#### 💼 Roles Being Hired")
-            rb = intel["role_breakdown"]
-            if not rb.empty:
-                for _, row in rb.iterrows():
-                    pct = row["Count"] / intel["total_openings"] * 100
-                    st.markdown(
-                        f"""
-                        <div style="display:flex; justify-content:space-between;
-                                    align-items:center; padding:6px 0;
-                                    border-bottom:1px solid #f1f5f9;">
-                            <span style="font-size:0.88rem; color:#1e293b;
-                                         font-weight:500;">
-                                {str(row["Role"])[:35]}
-                            </span>
-                            <span style="font-size:0.82rem; color:#2563eb;
-                                         font-weight:700; white-space:nowrap;">
-                                {int(row["Count"])} &nbsp;
-                                <span style="color:#94a3b8; font-weight:400;">
-                                    ({pct:.0f}%)
-                                </span>
-                            </span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+        with c_locs:
+            st.markdown('<p class="field-label">Locations</p>', unsafe_allow_html=True)
+            for _, row in intel["location_breakdown"].iterrows():
+                pct = row["Count"] / intel["total_openings"] * 100
+                st.markdown(f"""
+                <div class="drow">
+                  <span class="drow-label">{str(row["Location"])[:28]}</span>
+                  <span>
+                    <span class="drow-value" style="color:var(--sage-600);">{int(row["Count"])}</span>
+                    <span class="drow-sub">({pct:.0f}%)</span>
+                  </span>
+                </div>""", unsafe_allow_html=True)
 
-        with col_locs:
-            st.markdown("#### 📍 Hiring Locations")
-            lb = intel["location_breakdown"]
-            if not lb.empty:
-                for _, row in lb.iterrows():
-                    pct = row["Count"] / intel["total_openings"] * 100
-                    st.markdown(
-                        f"""
-                        <div style="display:flex; justify-content:space-between;
-                                    align-items:center; padding:6px 0;
-                                    border-bottom:1px solid #f1f5f9;">
-                            <span style="font-size:0.88rem; color:#1e293b;
-                                         font-weight:500;">
-                                {str(row["Location"])[:30]}
-                            </span>
-                            <span style="font-size:0.82rem; color:#10b981;
-                                         font-weight:700; white-space:nowrap;">
-                                {int(row["Count"])} &nbsp;
-                                <span style="color:#94a3b8; font-weight:400;">
-                                    ({pct:.0f}%)
-                                </span>
-                            </span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-        with col_exp:
-            st.markdown("#### 🎓 Experience Demand")
+        with c_exp:
+            st.markdown('<p class="field-label">Experience Mix</p>', unsafe_allow_html=True)
             eb = intel["exp_breakdown"]
             if not eb.empty and eb["Count"].sum() > 0:
-                total_exp_co = eb["Count"].sum()
+                total_co = eb["Count"].sum()
+                bar_colors = {
+                    "Entry Level (0–2 yrs)": ("var(--sage-400)",  "var(--sage-100)"),
+                    "Mid Level (3–5 yrs)":   ("var(--gold-500)",  "var(--gold-200)"),
+                    "Senior Level (6+ yrs)": ("var(--slate-400)", "var(--slate-100)"),
+                }
                 for _, row in eb.iterrows():
-                    if row["Count"] == 0:
-                        continue
-                    pct  = row["Count"] / total_exp_co * 100
-                    icon = ("🟢" if row["Level"].startswith("Entry") else
-                            "🔵" if row["Level"].startswith("Mid") else "🟣")
-                    bar_w = int(pct)
-                    st.markdown(
-                        f"""
-                        <div style="margin-bottom:10px;">
-                            <div style="display:flex; justify-content:space-between;
-                                        font-size:0.82rem; margin-bottom:3px;">
-                                <span>{icon} {row["Level"]}</span>
-                                <span style="font-weight:700;">{pct:.0f}%</span>
-                            </div>
-                            <div style="background:#f1f5f9; border-radius:99px;
-                                        height:7px; overflow:hidden;">
-                                <div style="width:{bar_w}%; height:100%;
-                                            background:#2563eb;
-                                            border-radius:99px;">
-                                </div>
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                    if row["Count"] == 0: continue
+                    pct = row["Count"] / total_co * 100
+                    fill, bg = bar_colors.get(row["Level"], ("var(--stone-400)","var(--stone-100)"))
+                    st.markdown(f"""
+                    <div class="mbar">
+                      <div class="mbar-head">
+                        <span class="mbar-lbl">{row["Level"]}</span>
+                        <span class="mbar-pct">{pct:.0f}%</span>
+                      </div>
+                      <div class="mbar-track" style="background:{bg};">
+                        <div class="mbar-fill" style="width:{pct:.0f}%;background:{fill};"></div>
+                      </div>
+                    </div>""", unsafe_allow_html=True)
             else:
-                st.caption("No experience level data available for this company.")
+                st.caption("No experience data for this company.")
 
-        st.markdown("---")
-
-        # ── All open jobs table ────────────────────────────────────────────
-        with st.expander(
-            f"📄 View all {intel['total_openings']} open positions at {company}",
-            expanded=False,
-        ):
-            st.dataframe(
-                intel["all_jobs"],
-                use_container_width=True,
-                hide_index=True,
-            )
-
+        st.markdown("")
+        with st.expander(f"View all {intel['total_openings']} open positions at {company}"):
+            st.dataframe(intel["all_jobs"], use_container_width=True, hide_index=True)
 else:
-    st.info(
-        "👆 Click a company button above or search by name "
-        "to see their full hiring intelligence profile."
-    )
+    st.markdown("""
+    <div class="empty" style="margin-top:16px;">
+      <div class="empty-icon">🏢</div>
+      <p class="empty-txt">Select a company above to view its intelligence profile</p>
+    </div>""", unsafe_allow_html=True)
 
-st.markdown("---")
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# § 7  AI MARKET INTELLIGENCE
-# ═══════════════════════════════════════════════════════════════════════════
-
-st.header("🤖 AI Market Intelligence")
-st.caption("Powered by Groq LLM — insights generated from your filtered data")
+# ══════════════════════════════════════════════════════════════════════════
+#  § 07  AI MARKET INTELLIGENCE
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">07</span>
+    <span class="sec-name">AI Intelligence</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Market Summary <span style="font-size:0.7rem;font-weight:700;
+    color:#c9a84c;text-transform:uppercase;letter-spacing:0.1em;
+    vertical-align:middle;margin-left:8px;">AI</span></p>
+  <p class="sec-head-sub">Executive brief generated from your filtered dataset by Groq LLM</p>
+</div>
+""", unsafe_allow_html=True)
 
 if st.button("Generate Market Summary", type="primary", use_container_width=True):
-    with st.spinner("Analysing market data with AI …"):
+    with st.spinner("Analysing market patterns …"):
         top_sk   = top_skills_list(df, n=10)
         top_role = most_common_value(df["job_title"])
         top_ind  = most_common_value(df["industry"])
-        metrics  = {"mean": None, "median": None, "min": None, "max": None, "count": 0}
+        metrics  = {"mean":None,"median":None,"min":None,"max":None,"count":0}
         summary  = generate_market_summary(top_sk, metrics, top_role, top_ind)
-    st.markdown(summary)
+    st.markdown(f'<div class="ai-result"><p class="ai-text">{summary}</p></div>',
+                unsafe_allow_html=True)
 else:
-    st.info("Click **Generate Market Summary** for an AI-powered brief on filtered data.")
+    st.markdown("""
+    <div class="empty" style="padding:32px 24px;">
+      <div class="empty-icon">◆</div>
+      <p class="empty-txt">Click to generate an AI market brief from current data</p>
+    </div>""", unsafe_allow_html=True)
 
-st.markdown("---")
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# § 8  AI-POWERED JOB RECOMMENDATIONS
-# ═══════════════════════════════════════════════════════════════════════════
-
-st.header("🎯 AI-Powered Job Recommendations")
-st.markdown(
-    "Describe your **skills, experience, and background**. "
-    "Our AI will scan today's job listings and surface your top matches."
-)
+# ══════════════════════════════════════════════════════════════════════════
+#  § 08  JOB RECOMMENDATIONS
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">08</span>
+    <span class="sec-name">AI Matching</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Personalised Job Recommendations <span style="font-size:0.7rem;font-weight:700;
+    color:#c9a84c;text-transform:uppercase;letter-spacing:0.1em;
+    vertical-align:middle;margin-left:8px;">AI</span></p>
+  <p class="sec-head-sub">Describe your background — AI surfaces your best-fit roles from live listings</p>
+</div>
+""", unsafe_allow_html=True)
 
 with st.form("rec_form"):
     user_profile_rec = st.text_area(
-        label="Your Skills & Experience",
-        placeholder=(
-            "Example: I have 2 years of experience in Python and data analysis. "
-            "I know Pandas, SQL, and Power BI. BSc in CSE. "
-            "Looking for data roles in Dhaka."
-        ),
-        height=160,
+        "Your Skills & Experience",
+        placeholder="Example: 2 years Python and data analysis, Pandas, SQL, Power BI. BSc CSE. Targeting data roles in Dhaka.",
+        height=130,
     )
-    col_a, col_b = st.columns([3, 1])
-    with col_b:
-        top_n = st.selectbox("Show top", [3, 5, 7], index=1)
-    submitted_rec = st.form_submit_button(
-        "🔍 Find My Best Matches", type="primary", use_container_width=True
-    )
+    ca, cb = st.columns([3,1])
+    with cb: top_n = st.selectbox("Results", [3,5,7], index=1)
+    sub_rec = st.form_submit_button("Find My Best Matches", type="primary", use_container_width=True)
 
-if submitted_rec:
+if sub_rec:
     if not user_profile_rec.strip():
-        st.warning("⚠️ Please enter your skills and experience before searching.")
+        st.warning("Please enter your skills and experience first.")
     else:
-        with st.spinner("AI is scanning job listings … (~15 seconds)"):
-            recommendations = generate_job_recommendations(
-                user_profile_rec, df, top_n=top_n
-            )
-
-        if not recommendations:
+        with st.spinner("Scanning live listings …"):
+            recs = generate_job_recommendations(user_profile_rec, df, top_n=top_n)
+        if not recs:
             st.error("No recommendations returned. Please try again.")
-        elif "error" in recommendations[0]:
-            st.error(recommendations[0]["error"])
+        elif "error" in recs[0]:
+            st.error(recs[0]["error"])
         else:
-            st.success(f"✅ Found your top **{len(recommendations)}** job matches!")
-            st.markdown("---")
-
-            for rec in recommendations:
+            st.success(f"Found your top {len(recs)} matches")
+            st.markdown("")
+            for rec in recs:
                 score = rec["match_score"]
-                score_emoji = "🟢" if score >= 80 else ("🟡" if score >= 60 else "🔴")
-                score_label = (
-                    "Strong Match" if score >= 80 else
-                    "Good Match"   if score >= 60 else
-                    "Partial Match"
-                )
-                with st.expander(
-                    f"{score_emoji}  #{rec['rank']}  —  **{rec['job_title']}** "
-                    f"@ {rec['company']}  |  Score: {score}/100  ({score_label})",
-                    expanded=(rec["rank"] == 1),
-                ):
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("📍 Location", rec["location"])
-                    m2.metric("🏭 Industry",  rec["industry"])
-                    m3.metric("🎯 Match",     f"{score}/100")
-                    st.markdown(f"**🤖 Why this fits you:** {rec['reason']}")
+                lbl   = "Strong Match" if score>=80 else ("Good Match" if score>=60 else "Partial Match")
+                with st.expander(f"#{rec['rank']}  {rec['job_title']} @ {rec['company']}  ·  {score}/100  {lbl}",
+                                 expanded=(rec["rank"]==1)):
+                    m1,m2,m3 = st.columns(3)
+                    m1.metric("Location", rec["location"])
+                    m2.metric("Industry", rec["industry"])
+                    m3.metric("Match",    f"{score}/100")
+                    st.markdown(f"**Why this fits:** {rec['reason']}")
                     if rec.get("experience") and rec["experience"] not in ("N/A","nan",""):
-                        st.caption(f"📋 Skills/Info: {rec['experience']}")
+                        st.caption(f"Skills/Info: {rec['experience']}")
                     if rec.get("deadline") and rec["deadline"] not in ("N/A","nan",""):
-                        st.caption(f"⏰ Deadline: {rec['deadline']}")
-
-            st.markdown("---")
-            st.caption("💡 Tip: Filter by industry/location in the sidebar before searching.")
-
-st.markdown("---")
+                        st.caption(f"Deadline: {rec['deadline']}")
+            st.caption("Tip: Apply sidebar filters before searching for tighter matches.")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 9  SKILL GAP ANALYZER
-# ═══════════════════════════════════════════════════════════════════════════
-
-st.header("🔍 Skill Gap Analyzer")
-st.markdown(
-    "Enter your current skills and background. Our AI compares you against "
-    "**live market demand** and tells you exactly what's missing — and how to fix it."
-)
+# ══════════════════════════════════════════════════════════════════════════
+#  § 09  SKILL GAP ANALYZER
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">09</span>
+    <span class="sec-name">Skill Intelligence</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Skill Gap Analyzer <span style="font-size:0.7rem;font-weight:700;
+    color:#c9a84c;text-transform:uppercase;letter-spacing:0.1em;
+    vertical-align:middle;margin-left:8px;">AI</span></p>
+  <p class="sec-head-sub">Compare your profile against live demand — see exactly what's missing and how to close it</p>
+</div>
+""", unsafe_allow_html=True)
 
 with st.form("gap_form"):
     user_profile_gap = st.text_area(
-        label="Your Current Skills & Background",
-        placeholder=(
-            "Example: I have 1 year of experience in Python and basic SQL. "
-            "I know Excel and have done some data analysis projects. "
-            "BSc in CSE from a private university in Dhaka."
-        ),
-        height=170,
+        "Your Current Skills & Background",
+        placeholder="Example: 1 year Python and basic SQL, Excel, some data analysis. BSc CSE from Dhaka.",
+        height=140,
     )
-    submitted_gap = st.form_submit_button(
-        "🔬 Analyze My Skill Gaps", type="primary", use_container_width=True
-    )
+    sub_gap = st.form_submit_button("Analyze My Skill Gaps", type="primary", use_container_width=True)
 
-if submitted_gap:
+if sub_gap:
     if not user_profile_gap.strip():
-        st.warning("⚠️ Please describe your skills and background first.")
+        st.warning("Please describe your background first.")
     else:
-        with st.spinner("Analysing your profile against live market data … (~15 seconds)"):
+        with st.spinner("Comparing against live market demand …"):
             gap_result = analyze_skill_gap(user_profile_gap, df)
-
         if gap_result.get("error"):
             st.error(gap_result["error"])
         else:
             score       = int(gap_result.get("readiness_score", 50))
             score_label = gap_result.get("score_label", "")
-            score_color = gap_result.get("score_color", "#2563eb")
+            score_color = gap_result.get("score_color", "#c9a84c")
 
-            st.markdown("---")
-            ring_col, summary_col = st.columns([1, 2])
+            st.markdown('<hr style="margin:20px 0;">', unsafe_allow_html=True)
+            ring_col, sum_col = st.columns([1,2])
+
             with ring_col:
-                st.markdown(
-                    f"""
-                    <div class="score-ring"
-                         style="border-color:{score_color}; color:{score_color};">
-                        <span class="score-number">{score}</span>
-                        <span class="score-label-text">{score_label}</span>
-                    </div>
-                    <p style="text-align:center; font-size:0.85rem;
-                               color:#64748b; margin-top:4px;">
-                        Market Readiness Score
-                    </p>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            with summary_col:
-                st.markdown("### 📝 Your Market Position")
-                st.markdown(gap_result.get("summary", ""))
-                top_roles_gap = gap_result.get("top_roles", [])
+                st.markdown(f"""
+                <div class="score-ring"
+                     style="border-color:{score_color};color:{score_color};
+                            box-shadow:0 0 28px {score_color}20;">
+                  <span class="score-num">{score}</span>
+                  <span class="score-lbl">Market Fit</span>
+                </div>
+                <p style="text-align:center;font-family:'Outfit',sans-serif;
+                           font-size:0.65rem;font-weight:700;
+                           color:var(--text-faint);text-transform:uppercase;
+                           letter-spacing:0.12em;margin-top:4px;">{score_label}</p>
+                """, unsafe_allow_html=True)
+
+            with sum_col:
+                st.markdown(f"""
+                <div style="padding-left:12px;">
+                  <p class="field-label" style="margin-bottom:10px;">Your Market Position</p>
+                  <p style="font-size:0.9rem;color:var(--text-body);line-height:1.75;
+                             margin-bottom:18px;">{gap_result.get("summary","")}</p>
+                """, unsafe_allow_html=True)
+                top_roles_gap = gap_result.get("top_roles",[])
                 if top_roles_gap:
-                    st.markdown("**🎯 Best-fit roles for you right now:**")
+                    st.markdown('<p class="field-label" style="margin-bottom:8px;">Best-fit roles right now</p>', unsafe_allow_html=True)
                     st.markdown(
-                        " ".join(
-                            f'<span class="tag-strength">{r}</span>'
-                            for r in top_roles_gap
-                        ),
-                        unsafe_allow_html=True,
+                        " ".join(f'<span class="tag tag-slate">{r}</span>' for r in top_roles_gap),
+                        unsafe_allow_html=True
                     )
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown("---")
-            col_match, col_strength, col_optional = st.columns(3)
+            st.markdown('<hr style="margin:20px 0;">', unsafe_allow_html=True)
+            cm, cs, co = st.columns(3)
 
-            with col_match:
-                st.markdown("### ✅ Skills You Have")
-                st.caption("In-demand skills from your profile")
-                matched = gap_result.get("matched_skills", [])
+            with cm:
+                st.markdown('<p class="field-label">✓ Skills You Have</p>', unsafe_allow_html=True)
+                matched = gap_result.get("matched_skills",[])
                 if matched:
-                    st.markdown(
-                        " ".join(f'<span class="tag-matched">{s}</span>' for s in matched),
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(" ".join(f'<span class="tag tag-sage">{s}</span>' for s in matched), unsafe_allow_html=True)
                 else:
-                    st.info("No direct skill matches found.")
+                    st.caption("No direct market matches found yet.")
 
-            with col_strength:
-                st.markdown("### 💪 Your Strengths")
-                st.caption("Standout advantages")
-                strengths = gap_result.get("strengths", [])
+            with cs:
+                st.markdown('<p class="field-label">★ Your Strengths</p>', unsafe_allow_html=True)
+                strengths = gap_result.get("strengths",[])
                 if strengths:
-                    st.markdown(
-                        " ".join(f'<span class="tag-strength">{s}</span>' for s in strengths),
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(" ".join(f'<span class="tag tag-slate">{s}</span>' for s in strengths), unsafe_allow_html=True)
                 else:
-                    st.info("Build more experience to develop clear strengths.")
+                    st.caption("Build more experience to surface strengths.")
 
-            with col_optional:
-                st.markdown("### 🟡 Nice-to-Have Gaps")
-                st.caption("Optional skills that boost your profile")
-                optional = gap_result.get("missing_optional", [])
+            with co:
+                st.markdown('<p class="field-label">○ Nice-to-Have</p>', unsafe_allow_html=True)
+                optional = gap_result.get("missing_optional",[])
                 if optional:
-                    st.markdown(
-                        " ".join(f'<span class="tag-optional">{s}</span>' for s in optional),
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(" ".join(f'<span class="tag tag-gold">{s}</span>' for s in optional), unsafe_allow_html=True)
                 else:
-                    st.success("No significant optional gaps!")
+                    st.success("No significant optional gaps.")
 
-            st.markdown("---")
-            st.markdown("### ❌ Critical Skill Gaps — Your Learning Roadmap")
-            st.caption("Highest-impact skills missing from your profile based on live market demand.")
+            st.markdown('<hr style="margin:20px 0;">', unsafe_allow_html=True)
+            st.markdown('<p class="field-label" style="margin-bottom:14px;">Critical Gaps — Learning Roadmap</p>', unsafe_allow_html=True)
 
-            missing_critical = gap_result.get("missing_critical", [])
+            missing_critical = gap_result.get("missing_critical",[])
             if not missing_critical:
-                st.success("🎉 No critical gaps! Your profile is well-aligned with market demand.")
+                st.success("No critical gaps — your profile aligns well with current demand.")
             else:
                 for i, gap in enumerate(missing_critical):
-                    with st.expander(
-                        f"❌  Gap #{i+1}: **{gap.get('skill', 'Unknown')}**",
-                        expanded=(i == 0),
-                    ):
+                    with st.expander(f"Gap {i+1} — {gap.get('skill','Unknown')}", expanded=(i==0)):
                         g1, g2 = st.columns(2)
                         with g1:
-                            st.markdown("**📌 Why this matters:**")
-                            st.markdown(gap.get("reason", ""))
+                            st.markdown(f'<p class="field-label">Why This Matters</p><p style="font-size:0.86rem;color:var(--text-body);line-height:1.65;">{gap.get("reason","")}</p>', unsafe_allow_html=True)
                         with g2:
-                            st.markdown("**📚 How to learn it (free):**")
-                            st.markdown(gap.get("how_to_learn", ""))
+                            st.markdown(f'<p class="field-label">How To Learn (Free)</p><p style="font-size:0.86rem;color:var(--text-body);line-height:1.65;">{gap.get("how_to_learn","")}</p>', unsafe_allow_html=True)
 
-            st.markdown("---")
-            st.markdown("### 📊 Readiness Breakdown")
-            num_matched  = len(gap_result.get("matched_skills",   []))
-            num_critical = len(gap_result.get("missing_critical", []))
-            num_optional = len(gap_result.get("missing_optional", []))
-            total_skills = num_matched + num_critical + num_optional
-
-            if total_skills > 0:
-                c1, c2, c3 = st.columns(3)
-                c1.metric("✅ Skills Matched", num_matched,
-                          delta=f"{num_matched/total_skills*100:.0f}% of tracked skills",
-                          delta_color="normal")
-                c2.metric("❌ Critical Gaps", num_critical,
-                          delta="High priority" if num_critical > 0 else "None — great!",
-                          delta_color="inverse" if num_critical > 0 else "normal")
-                c3.metric("🟡 Optional Gaps", num_optional,
-                          delta="Nice to address" if num_optional > 0 else "None",
-                          delta_color="off")
-
-            st.caption("💡 Tip: Filter to a specific industry before analyzing for sector-specific gaps.")
-
-st.markdown("---")
+            st.markdown('<hr style="margin:16px 0;">', unsafe_allow_html=True)
+            nm = len(gap_result.get("matched_skills",[]));nc = len(gap_result.get("missing_critical",[]));no = len(gap_result.get("missing_optional",[]))
+            tot = nm+nc+no
+            if tot > 0:
+                r1,r2,r3 = st.columns(3)
+                r1.metric("Skills Matched", nm,  delta=f"{nm/tot*100:.0f}% of tracked", delta_color="normal")
+                r2.metric("Critical Gaps",  nc,  delta="High priority" if nc>0 else "None", delta_color="inverse" if nc>0 else "normal")
+                r3.metric("Optional Gaps",  no,  delta_color="off")
+            st.caption("Tip: Filter to a specific industry for sector-targeted analysis.")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 10  SALARY ESTIMATOR
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 10  SALARY ESTIMATOR
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">10</span>
+    <span class="sec-name">Compensation Intelligence</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">AI Salary Estimator <span style="font-size:0.7rem;font-weight:700;
+    color:#c9a84c;text-transform:uppercase;letter-spacing:0.1em;
+    vertical-align:middle;margin-left:8px;">AI</span></p>
+  <p class="sec-head-sub">Realistic BDT salary range for any role — grounded in live BDJobs market data</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("💰 AI Salary Estimator")
-st.markdown(
-    "Fill in your profile below and our AI will estimate a "
-    "**realistic BDT salary range** for your role — grounded in "
-    "live market data from BDJobs.com."
-)
-
-st.markdown('<div class="form-card">', unsafe_allow_html=True)
-
+st.markdown('<div class="form-surface">', unsafe_allow_html=True)
 with st.form("salary_form"):
+    st.markdown('<div class="form-sep">Role Details</div>', unsafe_allow_html=True)
+    fr1, fr2 = st.columns(2)
+    with fr1:
+        jt_list = sorted(raw_df["job_title"].dropna().unique().tolist())
+        sel_jt  = st.selectbox("Job Title",  ["— Select a role —"]+jt_list, index=0)
+    with fr2:
+        in_list = sorted(raw_df["industry"].dropna().unique().tolist())
+        sel_ind = st.selectbox("Industry",   ["— Select an industry —"]+in_list, index=0)
 
-    st.markdown('<p class="form-section-label">🏷️ Role Details</p>', unsafe_allow_html=True)
-    col_role, col_industry = st.columns(2)
+    st.markdown('<div class="form-sep">Location & Experience</div>', unsafe_allow_html=True)
+    fl1, fl2, fl3 = st.columns(3)
+    with fl1:
+        lo_list = sorted(raw_df["location"].dropna().unique().tolist())
+        sel_loc = st.selectbox("Location",         ["— Select a location —"]+lo_list, index=0)
+    with fl2:
+        sel_lvl = st.selectbox("Experience Level", [
+            "— Select level —",
+            "Entry Level (0–2 years)","Mid Level (3–5 years)",
+            "Senior Level (6–10 years)","Expert / Lead (10+ years)",
+        ], index=0)
+    with fl3:
+        sel_yrs = st.slider("Years of Experience", 0, 20, 2, 1)
 
-    with col_role:
-        job_titles_list = sorted(raw_df["job_title"].dropna().unique().tolist())
-        sel_job_title   = st.selectbox(
-            "Job Title *",
-            options = ["— Select a role —"] + job_titles_list,
-            index   = 0,
-            help    = "Select the role you want salary data for.",
-        )
-
-    with col_industry:
-        industries_list = sorted(raw_df["industry"].dropna().unique().tolist())
-        sel_industry    = st.selectbox(
-            "Industry *",
-            options = ["— Select an industry —"] + industries_list,
-            index   = 0,
-            help    = "The industry/sector you are targeting.",
-        )
-
-    st.markdown(
-        '<p class="form-section-label">📍 Location & Experience</p>',
-        unsafe_allow_html=True,
-    )
-    col_loc, col_level, col_years = st.columns(3)
-
-    with col_loc:
-        locations_list = sorted(raw_df["location"].dropna().unique().tolist())
-        sel_location   = st.selectbox(
-            "Location *",
-            options = ["— Select a location —"] + locations_list,
-            index   = 0,
-            help    = "Job location (Dhaka salaries are typically higher).",
-        )
-
-    with col_level:
-        sel_exp_level = st.selectbox(
-            "Experience Level *",
-            options = [
-                "— Select level —",
-                "Entry Level (0–2 years)",
-                "Mid Level (3–5 years)",
-                "Senior Level (6–10 years)",
-                "Expert / Lead (10+ years)",
-            ],
-            index = 0,
-            help  = "Your seniority level.",
-        )
-
-    with col_years:
-        sel_years = st.slider(
-            "Years of Experience",
-            min_value = 0,
-            max_value = 20,
-            value     = 2,
-            step      = 1,
-            help      = "Drag to set your total years of work experience.",
-        )
-
-    st.markdown(
-        '<p class="form-section-label">🎓 Education</p>',
-        unsafe_allow_html=True,
-    )
-    sel_education = st.selectbox(
-        "Highest Education Level *",
-        options = [
-            "— Select education —",
-            "SSC / O-Level",
-            "HSC / A-Level",
-            "Diploma",
-            "Bachelor's (BSc / BA / BBA / B.Eng)",
-            "Master's (MSc / MBA / MA)",
-            "PhD / Doctorate",
-            "Professional Certification (no degree)",
-        ],
-        index = 0,
-        help  = "Your highest completed qualification.",
-    )
+    st.markdown('<div class="form-sep">Education</div>', unsafe_allow_html=True)
+    sel_edu = st.selectbox("Highest Education Level", [
+        "— Select education —",
+        "SSC / O-Level","HSC / A-Level","Diploma",
+        "Bachelor's (BSc / BA / BBA / B.Eng)",
+        "Master's (MSc / MBA / MA)","PhD / Doctorate",
+        "Professional Certification (no degree)",
+    ], index=0)
 
     st.markdown("")
-    submitted_salary = st.form_submit_button(
-        "💰 Estimate My Salary",
-        type                = "primary",
-        use_container_width = True,
-    )
+    sub_sal = st.form_submit_button("Estimate My Salary", type="primary", use_container_width=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-if submitted_salary:
-    errors = []
-    if sel_job_title.startswith("—"):
-        errors.append("Please select a **Job Title**.")
-    if sel_industry.startswith("—"):
-        errors.append("Please select an **Industry**.")
-    if sel_location.startswith("—"):
-        errors.append("Please select a **Location**.")
-    if sel_exp_level.startswith("—"):
-        errors.append("Please select an **Experience Level**.")
-    if sel_education.startswith("—"):
-        errors.append("Please select your **Education Level**.")
+if sub_sal:
+    errs = []
+    if sel_jt.startswith("—"):  errs.append("Select a Job Title.")
+    if sel_ind.startswith("—"): errs.append("Select an Industry.")
+    if sel_loc.startswith("—"): errs.append("Select a Location.")
+    if sel_lvl.startswith("—"): errs.append("Select Experience Level.")
+    if sel_edu.startswith("—"): errs.append("Select Education Level.")
+    for e in errs: st.warning(f"⚠  {e}")
 
-    if errors:
-        for err in errors:
-            st.warning(f"⚠️ {err}")
-    else:
-        with st.spinner("AI is calculating your salary estimate … (~15 seconds)"):
+    if not errs:
+        with st.spinner("Calculating salary estimate …"):
             sal = estimate_salary(
-                job_title           = sel_job_title,
-                industry            = sel_industry,
-                experience_level    = sel_exp_level,
-                years_of_experience = sel_years,
-                location            = sel_location,
-                education           = sel_education,
-                df                  = df,
+                job_title=sel_jt, industry=sel_ind, experience_level=sel_lvl,
+                years_of_experience=sel_yrs, location=sel_loc, education=sel_edu, df=df,
             )
-
         if sal.get("error"):
             st.error(sal["error"])
         else:
-            mn         = sal["min_salary"]
-            med        = sal["median_salary"]
-            mx         = sal["max_salary"]
-            conf       = sal.get("confidence", "Medium")
-            conf_color = sal.get("confidence_color", "#d97706")
+            mn=sal["min_salary"]; med=sal["median_salary"]; mx=sal["max_salary"]
+            conf=sal.get("confidence","Medium")
+            fill=min(int(med/300_000*100),100)
 
-            BAR_CEILING = 300_000
-            fill_pct    = min(int((med / BAR_CEILING) * 100), 100)
+            # confidence pill colours
+            c_map = {
+                "High":   ("var(--sage-50)","var(--sage-700)","var(--sage-200)"),
+                "Medium": ("var(--gold-100)","var(--gold-700)","var(--border-gold)"),
+                "Low":    ("var(--rose-50)","var(--rose-700)","var(--rose-200)"),
+            }
+            cbg,cfg,cbd = c_map.get(conf,("var(--stone-100)","var(--stone-600)","var(--border-base)"))
 
-            st.markdown("")
+            st.markdown('<div class="salary-result fade-in">', unsafe_allow_html=True)
 
-            h1, h2 = st.columns([3, 1])
-            with h1:
-                st.markdown(
-                    f"""
-                    <p style="margin:0; font-size:0.78rem; font-weight:700;
-                               color:#64748b; text-transform:uppercase;
-                               letter-spacing:0.06em;">
-                        Estimated Monthly Salary
-                    </p>
-                    <p style="margin:4px 0 0 0; font-size:1rem;
-                               color:#1e293b; font-weight:500;">
-                        {sel_job_title} · {sel_industry} · {sel_location}
-                    </p>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            with h2:
-                st.markdown(
-                    f"""
-                    <div style="background:{conf_color}22; color:{conf_color};
-                                border:1px solid {conf_color}66;
-                                border-radius:99px; padding:6px 16px;
-                                font-size:0.8rem; font-weight:700;
-                                text-align:center; margin-top:8px;">
-                        {conf} Confidence
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+            hc1, hc2 = st.columns([3,1])
+            with hc1:
+                st.markdown(f"""
+                <p class="sal-eyebrow">Estimated Monthly Salary · BDT</p>
+                <p class="sal-role">{sel_jt} · {sel_ind} · {sel_loc}</p>
+                """, unsafe_allow_html=True)
+            with hc2:
+                st.markdown(f"""
+                <div style="text-align:right;padding-top:10px;">
+                  <span class="sal-conf"
+                    style="background:{cbg};color:{cfg};border:1px solid {cbd};">
+                    {conf} Confidence
+                  </span>
+                </div>""", unsafe_allow_html=True)
 
             st.markdown("")
+            s1,s2,s3 = st.columns(3)
+            s1.metric("Minimum / month",          f"৳ {mn:,}")
+            s2.metric("Median / month (likely)",   f"৳ {med:,}")
+            s3.metric("Maximum / month",           f"৳ {mx:,}")
 
-            r1, r2, r3 = st.columns(3)
-            with r1:
-                st.metric("📉 Minimum",             f"৳ {mn:,}")
-            with r2:
-                st.metric("💰 Median (Most Likely)", f"৳ {med:,}")
-            with r3:
-                st.metric("📈 Maximum",              f"৳ {mx:,}")
+            st.markdown(f"""
+            <div class="sal-bar-track">
+              <div class="sal-bar-fill" style="width:{fill}%;"></div>
+            </div>
+            <div class="sal-scale">
+              <span>৳ 0</span><span>৳ 1,00,000</span>
+              <span>৳ 2,00,000</span><span>৳ 3,00,000+</span>
+            </div>""", unsafe_allow_html=True)
 
-            st.caption("Monthly salary in BDT (Bangladeshi Taka)")
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("")
 
-            st.markdown(
-                f"""
-                <div style="margin:16px 0 6px 0;">
-                    <div style="background:#dbeafe; border-radius:99px;
-                                height:14px; overflow:hidden;">
-                        <div style="width:{fill_pct}%; height:100%;
-                                    border-radius:99px;
-                                    background:linear-gradient(90deg,#2563eb,#0ea5e9);">
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;
-                                font-size:0.73rem; color:#94a3b8; margin-top:5px;">
-                        <span>৳ 0</span>
-                        <span>৳ 1,50,000</span>
-                        <span>৳ 3,00,000+</span>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            i1,i2,i3 = st.columns(3)
+            with i1:
+                st.markdown('<p class="field-label">Why This Estimate</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="font-size:0.86rem;color:var(--text-body);line-height:1.7;">{sal.get("reasoning","")}</p>', unsafe_allow_html=True)
+            with i2:
+                st.markdown('<p class="field-label">Market Context</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="font-size:0.86rem;color:var(--text-body);line-height:1.7;">{sal.get("market_context","")}</p>', unsafe_allow_html=True)
+            with i3:
+                st.markdown('<p class="field-label">Negotiation Tips</p>', unsafe_allow_html=True)
+                for tip in sal.get("negotiation_tips",[]):
+                    st.markdown(f'<p style="font-size:0.86rem;color:var(--text-body);margin:0 0 6px;line-height:1.6;">· {tip}</p>', unsafe_allow_html=True)
 
-            st.markdown("---")
-
-            col_reason, col_market, col_tips = st.columns(3)
-            with col_reason:
-                st.markdown("#### 📌 Why This Estimate")
-                st.markdown(sal.get("reasoning", ""))
-            with col_market:
-                st.markdown("#### 📊 Market Context")
-                st.markdown(sal.get("market_context", ""))
-            with col_tips:
-                st.markdown("#### 🤝 Negotiation Tips")
-                for tip in sal.get("negotiation_tips", []):
-                    st.markdown(f"• {tip}")
-
-            st.markdown("---")
-
-            col_up, col_down = st.columns(2)
-            with col_up:
-                st.markdown("#### 📈 Factors That Push Salary Higher")
-                for f in sal.get("factors_up", []):
-                    st.markdown(f'<span class="tag-up">✅ {f}</span>',
-                                unsafe_allow_html=True)
-            with col_down:
-                st.markdown("#### 📉 Factors That Push Salary Lower")
-                for f in sal.get("factors_down", []):
-                    st.markdown(f'<span class="tag-down">⚠️ {f}</span>',
-                                unsafe_allow_html=True)
+            st.markdown('<hr style="margin:18px 0;">', unsafe_allow_html=True)
+            fu,fd = st.columns(2)
+            with fu:
+                st.markdown('<p class="field-label">Factors → Higher Salary</p>', unsafe_allow_html=True)
+                for f in sal.get("factors_up",[]):
+                    st.markdown(f'<span class="tag tag-sage">↑ {f}</span>', unsafe_allow_html=True)
+            with fd:
+                st.markdown('<p class="field-label">Factors → Lower Salary</p>', unsafe_allow_html=True)
+                for f in sal.get("factors_down",[]):
+                    st.markdown(f'<span class="tag tag-rose">↓ {f}</span>', unsafe_allow_html=True)
 
             st.markdown("")
-            st.caption(
-                "⚠️ **Disclaimer:** This is an AI-generated estimate based on "
-                "Bangladesh market norms and live BDJobs data. Actual salaries "
-                "vary by company, negotiation, and individual profile. "
-                "Use as a guide only."
-            )
-
-st.markdown("---")
+            st.caption("AI estimate based on Bangladesh market norms and live BDJobs data. Actual salaries vary by company and negotiation.")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# § 11  EXPORT & DOWNLOAD
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+#  § 11  EXPORT
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="sec-divider">
+  <div class="sec-divider-inner">
+    <span class="sec-num">11</span>
+    <span class="sec-name">Export</span>
+  </div>
+</div>
+<div class="sec-head">
+  <p class="sec-head-title">Download Data</p>
+  <p class="sec-head-sub">Export filtered listings as CSV or generate a formatted PDF market report</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.header("📥 Export & Download")
-st.markdown(
-    "Download the **currently filtered** job data as a CSV spreadsheet, "
-    "or generate a formatted **PDF market report**."
-)
-
-active_filters = {
-    "industries": sel_industries,
-    "roles":      sel_roles,
-    "locations":  sel_locations,
-}
+active_filters = {"industries":sel_industries,"roles":sel_roles,"locations":sel_locations}
 today_str = datetime.now().strftime("%Y-%m-%d")
 
-col_csv, col_pdf = st.columns(2)
-
-with col_csv:
-    st.markdown("#### 📊 CSV Spreadsheet")
-    st.markdown(
-        f"Export all **{len(df):,} filtered job listings** to a spreadsheet. "
-        "Open in Excel, Google Sheets, or any data tool."
-    )
+ec1, ec2 = st.columns(2)
+with ec1:
+    st.markdown(f"""
+    <div class="export-card">
+      <div class="export-icon-box">📊</div>
+      <p class="export-title">CSV Spreadsheet</p>
+      <p class="export-desc">
+        Export all <strong>{len(df):,} filtered postings</strong> as a CSV.
+        Opens directly in Excel or Google Sheets.
+      </p>
+    </div>""", unsafe_allow_html=True)
     st.download_button(
-        label               = "⬇️ Download CSV",
-        data                = to_csv_bytes(df),
-        file_name           = f"jobseekAI_jobs_{today_str}.csv",
-        mime                = "text/csv",
-        use_container_width = True,
+        "↓  Download CSV", data=to_csv_bytes(df),
+        file_name=f"jobseekAI_{today_str}.csv",
+        mime="text/csv", use_container_width=True,
     )
-    st.caption(f"File will contain {len(df):,} rows · UTF-8 encoded")
+    st.caption(f"{len(df):,} rows · UTF-8 encoded")
 
-with col_pdf:
-    st.markdown("#### 📄 PDF Market Report")
-    st.markdown(
-        "Formatted report with KPIs, top companies, "
-        "industries, locations, and job listings."
-    )
-    if st.button("⬇️ Generate & Download PDF",
-                 use_container_width=True, key="pdf_btn"):
-        with st.spinner("Building your PDF report …"):
+with ec2:
+    st.markdown("""
+    <div class="export-card">
+      <div class="export-icon-box">📄</div>
+      <p class="export-title">PDF Market Report</p>
+      <p class="export-desc">
+        Formatted report with KPIs, company rankings,
+        industry breakdown, and job listings.
+      </p>
+    </div>""", unsafe_allow_html=True)
+    if st.button("↓  Generate PDF Report", use_container_width=True, key="pdf_btn"):
+        with st.spinner("Building PDF …"):
             try:
                 pdf_bytes = to_pdf_bytes(df, active_filters)
-                st.download_button(
-                    label               = "📄 Click here to save your PDF",
-                    data                = pdf_bytes,
-                    file_name           = f"jobseekAI_report_{today_str}.pdf",
-                    mime                = "application/pdf",
-                    use_container_width = True,
-                    type                = "primary",
-                )
-                st.success("✅ PDF ready! Click the button above to download.")
+                st.download_button("↓  Save PDF", data=pdf_bytes,
+                                   file_name=f"jobseekAI_report_{today_str}.pdf",
+                                   mime="application/pdf",
+                                   use_container_width=True, type="primary")
+                st.success("PDF ready.")
             except Exception as e:
-                st.error(f"⚠️ Could not generate PDF: {e}")
-    st.caption("Includes KPIs · Top 10 rankings · First 30 job listings")
+                st.error(f"Could not generate PDF: {e}")
+    st.caption("KPIs · Top 10 rankings · First 30 listings")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# FOOTER
-# ═══════════════════════════════════════════════════════════════════════════
-
-st.markdown("---")
-st.caption(
-    "**JobSeekAI** · Built with Streamlit · Live data from BDJobs.com · "
-    "Auto-updated daily"
-)
+# ══════════════════════════════════════════════════════════════════════════
+#  FOOTER
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown(f"""
+<div class="footer">
+  <div class="footer-brand">
+    JobSeek<span>AI</span>
+  </div>
+  <div class="footer-meta">
+    Live data from BDJobs.com · Auto-updated daily ·
+    Built with Streamlit & Python · {datetime.now().year}
+  </div>
+</div>
+""", unsafe_allow_html=True)
