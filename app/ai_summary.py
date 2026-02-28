@@ -5,6 +5,7 @@ Features:
   - generate_market_summary()     : executive market brief
   - generate_job_recommendations(): AI job matching
   - analyze_skill_gap()           : skill gap analysis + readiness score
+  - estimate_salary()             : AI-powered salary estimator
 """
 
 from __future__ import annotations
@@ -21,8 +22,8 @@ import requests
 # Configuration
 # ---------------------------------------------------------------------------
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "llama-3.3-70b-versatile"
+GROQ_API_URL    = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL      = "llama-3.3-70b-versatile"
 REQUEST_TIMEOUT = 30
 
 
@@ -49,10 +50,10 @@ def _call_groq(messages: list, max_tokens: int = 512) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model":      GROQ_MODEL,
-        "messages":   messages,
-        "temperature": 0.4,
-        "max_tokens": max_tokens,
+        "model":       GROQ_MODEL,
+        "messages":    messages,
+        "temperature": 0.3,
+        "max_tokens":  max_tokens,
     }
     try:
         resp = requests.post(
@@ -62,18 +63,17 @@ def _call_groq(messages: list, max_tokens: int = 512) -> str:
         return resp.json()["choices"][0]["message"]["content"].strip()
 
     except requests.exceptions.Timeout:
-        return "⚠️ **Request Timed Out** — The AI service took too long. Please try again."
+        return "⚠️ **Request Timed Out** — Please try again."
     except requests.exceptions.HTTPError as exc:
         status = exc.response.status_code if exc.response is not None else "N/A"
         return f"⚠️ **API Error (HTTP {status})** — Check your API key and quota."
     except (requests.exceptions.RequestException, KeyError, IndexError):
-        return "⚠️ **AI Unavailable** — Could not connect to Groq. Please try again shortly."
+        return "⚠️ **AI Unavailable** — Could not connect to Groq. Please try again."
 
 
 # ---------------------------------------------------------------------------
-# Prompt Construction
+# FEATURE 1: Market Intelligence Summary
 # ---------------------------------------------------------------------------
-
 
 def _build_prompt(
     top_skills: List[Tuple[str, int]],
@@ -108,19 +108,14 @@ REQUIREMENTS
 4. Provide 2 actionable recommendations for job seekers in Bangladesh.
 5. Close with a forward-looking outlook (1-2 sentences).
 
-Write in a professional, data-driven tone suitable for an executive
-dashboard. Avoid filler phrases. Be specific to Bangladesh context."""
+Write in a professional, data-driven tone. Avoid filler phrases.
+Be specific to Bangladesh context."""
 
-
-# ---------------------------------------------------------------------------
-# FEATURE 1: Market Intelligence Summary
-# ---------------------------------------------------------------------------
 
 FALLBACK_MESSAGE = (
     "⚠️ **AI Summary Unavailable**\n\n"
     "Could not generate the market intelligence summary at this time. "
-    "Please verify your `GROQ_API_KEY` environment variable is set and try again.\n\n"
-    "You can still explore the analytics above."
+    "Please verify your `GROQ_API_KEY` and try again."
 )
 
 
@@ -130,19 +125,13 @@ def generate_market_summary(
     top_role: str,
     top_industry: str,
 ) -> str:
-    """Call the Groq API and return a market-insight paragraph."""
     api_key = _get_api_key()
     if not api_key:
-        return (
-            "⚠️ **API Key Missing**\n\n"
-            "Set the `GROQ_API_KEY` environment variable to enable "
-            "AI-powered market summaries."
-        )
+        return "⚠️ **API Key Missing** — Set `GROQ_API_KEY` to enable AI summaries."
 
     avg_salary = salary_metrics.get("mean") or 0.0
     prompt     = _build_prompt(top_skills, avg_salary, top_role, top_industry)
-
-    messages = [
+    messages   = [
         {
             "role": "system",
             "content": (
@@ -159,17 +148,11 @@ def generate_market_summary(
 # FEATURE 2: AI-Powered Job Recommendations
 # ---------------------------------------------------------------------------
 
-
 def generate_job_recommendations(
     user_profile: str,
     df: pd.DataFrame,
     top_n: int = 5,
 ) -> list[dict]:
-    """
-    Match a user's skills/experience against scraped jobs using Groq AI.
-    Returns a list of dicts with rank, job details, match_score, reason.
-    On error returns a list with a single dict containing an 'error' key.
-    """
     if df.empty:
         return [{"error": "No job data available to match against."}]
 
@@ -177,48 +160,32 @@ def generate_job_recommendations(
 
     lines = []
     for idx, row in sample_df.iterrows():
-        title    = str(row.get("job_title", "N/A")).strip()
-        company  = str(row.get("company",   "N/A")).strip()
-        location = str(row.get("location",  "N/A")).strip()
-        industry = str(row.get("industry",  "N/A")).strip()
-        skills   = str(row.get("skills",    "N/A")).strip()
         lines.append(
-            f"ID:{idx} | {title} @ {company} | Loc:{location} | "
-            f"Industry:{industry} | Skills/Info:{skills[:120]}"
+            f"ID:{idx} | {str(row.get('job_title','N/A')).strip()} "
+            f"@ {str(row.get('company','N/A')).strip()} | "
+            f"Loc:{str(row.get('location','N/A')).strip()} | "
+            f"Industry:{str(row.get('industry','N/A')).strip()} | "
+            f"Skills:{str(row.get('skills','N/A')).strip()[:120]}"
         )
-
-    jobs_text = "\n".join(lines)
 
     prompt = f"""You are a career advisor specialising in the Bangladesh job market.
 
 CANDIDATE PROFILE:
 \"\"\"{user_profile}\"\"\"
 
-AVAILABLE JOBS (format: ID | Title @ Company | Location | Industry | Skills/Info):
-{jobs_text}
+AVAILABLE JOBS:
+{chr(10).join(lines)}
 
-TASK:
-Select the TOP {top_n} jobs that best match this candidate.
-For each match return:
-  - job_id      : the exact integer ID from the list above
-  - match_score : integer 0-100
-  - reason      : 1-2 sentences explaining the match
-
-Return ONLY a valid JSON array — no markdown, no explanation outside the JSON.
-
-Example format:
+Select the TOP {top_n} best-matching jobs. Return ONLY a valid JSON array:
 [
-  {{"job_id": 3, "match_score": 91, "reason": "Your Python and SQL skills directly match the data analyst requirements."}},
-  {{"job_id": 17, "match_score": 84, "reason": "..."}}
+  {{"job_id": <int>, "match_score": <0-100>, "reason": "<1-2 sentences>"}},
+  ...
 ]"""
 
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are a precise career-matching engine. "
-                "Always reply with a valid JSON array only — no prose, no markdown fences."
-            ),
+            "content": "You are a precise career-matching engine. Reply with valid JSON only.",
         },
         {"role": "user", "content": prompt},
     ]
@@ -233,10 +200,10 @@ Example format:
                 clean = clean[4:]
         matches = json.loads(clean.strip())
     except Exception:
-        return [{"error": f"Could not parse AI response. Raw output:\n\n{raw}"}]
+        return [{"error": f"Could not parse AI response:\n\n{raw}"}]
 
     if not isinstance(matches, list):
-        return [{"error": "Unexpected response format from AI. Please try again."}]
+        return [{"error": "Unexpected response format. Please try again."}]
 
     results = []
     for rank, match in enumerate(matches[:top_n], start=1):
@@ -245,7 +212,6 @@ Example format:
             row = sample_df.loc[int(job_id)]
         except (KeyError, TypeError, ValueError):
             continue
-
         results.append({
             "rank":        rank,
             "job_title":   str(row.get("job_title",  "N/A")).strip(),
@@ -259,8 +225,7 @@ Example format:
         })
 
     if not results:
-        return [{"error": "AI returned matches but none could be mapped to real jobs. Try again."}]
-
+        return [{"error": "AI returned matches but none mapped to real jobs. Try again."}]
     return results
 
 
@@ -268,150 +233,220 @@ Example format:
 # FEATURE 3: Skill Gap Analyzer
 # ---------------------------------------------------------------------------
 
-
 def _extract_market_skills(df: pd.DataFrame, top_n: int = 40) -> List[str]:
-    """
-    Pull the most frequently mentioned skills/keywords from the
-    scraped jobs dataset. Used to build the 'market demand' side
-    of the skill gap comparison.
-    """
     from collections import Counter
     import re
 
-    all_tokens: list[str] = []
-
-    # Common stopwords to filter out so we get real skills, not noise
     STOPWORDS = {
-        "the", "and", "or", "in", "of", "to", "a", "an", "is", "are",
-        "for", "with", "on", "at", "by", "as", "be", "will", "we",
-        "you", "not", "this", "that", "our", "from", "have", "has",
-        "experience", "required", "minimum", "maximum", "years", "year",
-        "job", "work", "candidate", "applicant", "position", "role",
-        "company", "team", "good", "strong", "excellent", "knowledge",
-        "ability", "skill", "skills", "must", "should", "prefer",
-        "preferred", "graduate", "university", "degree", "education",
-        "male", "female", "both", "any", "all", "other", "please",
-        "apply", "salary", "negotiable", "attractive", "package",
-        "bangladesh", "dhaka", "chittagong", "sylhet",
+        "the","and","or","in","of","to","a","an","is","are","for","with",
+        "on","at","by","as","be","will","we","you","not","this","that",
+        "our","from","have","has","experience","required","minimum","maximum",
+        "years","year","job","work","candidate","applicant","position","role",
+        "company","team","good","strong","excellent","knowledge","ability",
+        "skill","skills","must","should","prefer","preferred","graduate",
+        "university","degree","education","male","female","both","any","all",
+        "other","please","apply","salary","negotiable","attractive","package",
+        "bangladesh","dhaka","chittagong","sylhet",
     }
 
     col = "skills" if "skills" in df.columns else None
     if col is None:
         return []
 
+    all_tokens: list[str] = []
     for text in df[col].dropna().astype(str):
-        # Tokenise: split on commas, slashes, pipes, semicolons, newlines
         tokens = re.split(r"[,/|;\n]+", text.lower())
         for token in tokens:
             token = token.strip()
-            # Keep tokens that are 2-40 chars and not pure stopwords
             if 2 <= len(token) <= 40 and token not in STOPWORDS:
                 all_tokens.append(token)
 
-    counts  = Counter(all_tokens)
-    top     = [skill for skill, _ in counts.most_common(top_n)]
-    return top
+    return [skill for skill, _ in Counter(all_tokens).most_common(top_n)]
 
 
-def analyze_skill_gap(
-    user_profile: str,
-    df: pd.DataFrame,
-) -> dict:
-    """
-    Compare the user's stated skills against live market demand and
-    return a structured skill gap report.
-
-    Parameters
-    ----------
-    user_profile : str
-        Free-text description of the candidate's skills and background.
-    df : pd.DataFrame
-        The filtered jobs DataFrame.
-
-    Returns
-    -------
-    dict with keys:
-        readiness_score   : int 0–100
-        score_label       : str  e.g. "Strong"
-        score_color       : str  hex colour
-        matched_skills    : list[str]   skills user has that market wants
-        missing_critical  : list[dict]  {skill, reason, how_to_learn}
-        missing_optional  : list[str]   nice-to-have gaps
-        strengths         : list[str]   user's standout advantages
-        top_roles         : list[str]   roles best suited to user right now
-        summary           : str         2-3 sentence narrative
-        error             : str | None
-    """
+def analyze_skill_gap(user_profile: str, df: pd.DataFrame) -> dict:
     if df.empty:
-        return {"error": "No job data available. Please check your data source."}
-
+        return {"error": "No job data available."}
     if not user_profile.strip():
         return {"error": "Please enter your skills and background first."}
 
-    # Pull market demand from scraped data
-    market_skills = _extract_market_skills(df, top_n=40)
+    market_skills     = _extract_market_skills(df, top_n=40)
     if not market_skills:
         return {"error": "Could not extract market skills from dataset."}
 
-    # Also get top roles and industries for context
-    top_roles_list     = df["job_title"].value_counts().head(10).index.tolist()
-    top_industry_list  = df["industry"].value_counts().head(6).index.tolist()
+    top_roles_str     = ", ".join(df["job_title"].value_counts().head(10).index.tolist())
+    top_industries_str= ", ".join(df["industry"].value_counts().head(6).index.tolist())
+    market_skills_str = ", ".join(market_skills)
 
-    market_skills_str  = ", ".join(market_skills)
-    top_roles_str      = ", ".join(top_roles_list)
-    top_industries_str = ", ".join(top_industry_list)
+    prompt = f"""You are a senior career coach specialising in the Bangladesh job market.
 
-    prompt = f"""You are a senior career coach and skill gap analyst specialising
-in the Bangladesh job market.
-
-CANDIDATE PROFILE (what they currently have):
+CANDIDATE PROFILE:
 \"\"\"{user_profile}\"\"\"
 
-LIVE MARKET DATA (extracted from {len(df)} real job postings on BDJobs.com):
-- Most demanded skills/keywords: {market_skills_str}
-- Most common job roles hiring right now: {top_roles_str}
-- Top hiring industries: {top_industries_str}
+LIVE MARKET DATA (from {len(df)} real BDJobs postings):
+- Most demanded skills: {market_skills_str}
+- Top hiring roles: {top_roles_str}
+- Top industries: {top_industries_str}
 
-TASK — Perform a thorough skill gap analysis. Return ONLY a valid JSON object
-(no markdown fences, no explanation outside the JSON) with exactly these keys:
-
+Return ONLY a valid JSON object (no markdown fences):
 {{
-  "readiness_score": <integer 0-100, how job-market-ready this candidate is>,
-  "matched_skills": [<list of strings — skills the candidate has that the market wants>],
+  "readiness_score": <int 0-100>,
+  "matched_skills": [<up to 8 strings>],
   "missing_critical": [
-    {{
-      "skill": "<skill name>",
-      "reason": "<1 sentence: why this skill matters in BD market>",
-      "how_to_learn": "<1 sentence: specific free resource or approach>"
-    }}
+    {{"skill":"<name>","reason":"<1 sentence>","how_to_learn":"<free resource>"}}
   ],
-  "missing_optional": [<list of strings — nice-to-have skills they lack>],
-  "strengths": [<list of strings — candidate's standout advantages>],
-  "top_roles": [<list of 3 job role titles from the market data that best fit this candidate RIGHT NOW>],
-  "summary": "<2-3 sentence narrative overview of their market position>"
-}}
-
-RULES:
-- missing_critical: list the 3-5 most impactful gaps only
-- missing_optional: list up to 5 nice-to-have gaps
-- matched_skills: list up to 8 matching skills
-- strengths: list up to 4 genuine strengths
-- Be specific to Bangladesh job market context
-- how_to_learn must mention a specific free resource (Coursera, YouTube, freeCodeCamp, etc.)
-- readiness_score: 80-100 = strong, 60-79 = good, 40-59 = developing, 0-39 = early stage"""
+  "missing_optional": [<up to 5 strings>],
+  "strengths": [<up to 4 strings>],
+  "top_roles": [<3 role titles from market data>],
+  "summary": "<2-3 sentence narrative>"
+}}"""
 
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are a precise skill gap analysis engine for the Bangladesh job market. "
-                "Always reply with a valid JSON object only — no prose, no markdown fences."
-            ),
+            "content": "You are a precise skill gap analysis engine. Reply with valid JSON only.",
         },
         {"role": "user", "content": prompt},
     ]
 
     raw = _call_groq(messages, max_tokens=1200)
+
+    try:
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```")[1]
+            if clean.lower().startswith("json"):
+                clean = clean[4:]
+        result = json.loads(clean.strip())
+    except Exception:
+        return {"error": f"Could not parse AI response:\n\n{raw}"}
+
+    for key in ["readiness_score","matched_skills","missing_critical",
+                "missing_optional","strengths","top_roles","summary"]:
+        if key not in result:
+            result[key] = [] if key != "readiness_score" else 50
+
+    score = int(result.get("readiness_score", 50))
+    if score >= 80:
+        result["score_label"] = "Strong"
+        result["score_color"] = "#16a34a"
+    elif score >= 60:
+        result["score_label"] = "Good"
+        result["score_color"] = "#2563eb"
+    elif score >= 40:
+        result["score_label"] = "Developing"
+        result["score_color"] = "#d97706"
+    else:
+        result["score_label"] = "Early Stage"
+        result["score_color"] = "#dc2626"
+
+    result["error"] = None
+    return result
+
+
+# ---------------------------------------------------------------------------
+# FEATURE 4: AI-Powered Salary Estimator  ◄─ NEW
+# ---------------------------------------------------------------------------
+
+def estimate_salary(
+    job_title: str,
+    industry: str,
+    experience_level: str,
+    years_of_experience: int,
+    location: str,
+    education: str,
+    df: pd.DataFrame,
+) -> dict:
+    """
+    Use Groq AI to estimate a realistic BDT salary range for the given
+    profile, grounded in live scraped market data for context.
+
+    Returns a dict with keys:
+        min_salary       : int   (BDT/month)
+        max_salary       : int   (BDT/month)
+        median_salary    : int   (BDT/month)
+        currency         : str   "BDT"
+        confidence       : str   "High" | "Medium" | "Low"
+        confidence_color : str   hex
+        reasoning        : str   paragraph explaining the estimate
+        market_context   : str   how this role compares to the market
+        negotiation_tips : list[str]
+        factors_up       : list[str]   things that push salary higher
+        factors_down     : list[str]   things that push salary lower
+        error            : str | None
+    """
+    if not job_title.strip():
+        return {"error": "Please select a job role."}
+
+    # Pull market context from scraped data to ground the AI's answer
+    total_jobs    = len(df)
+    role_count    = int((df["job_title"] == job_title).sum()) if not df.empty else 0
+    industry_jobs = int((df["industry"]  == industry).sum())  if not df.empty else 0
+    top_companies = (
+        df[df["industry"] == industry]["company"]
+        .value_counts().head(5).index.tolist()
+        if not df.empty else []
+    )
+    top_cos_str   = ", ".join(top_companies) if top_companies else "N/A"
+
+    prompt = f"""You are a senior compensation analyst and HR consultant
+specialising exclusively in the Bangladesh job market.
+
+A user wants a salary estimate for the following profile:
+
+PROFILE
+───────
+Job Title          : {job_title}
+Industry           : {industry}
+Experience Level   : {experience_level}
+Years of Experience: {years_of_experience} year(s)
+Location           : {location}
+Education          : {education}
+
+LIVE MARKET CONTEXT (from {total_jobs} real BDJobs.com postings scraped today):
+- Postings for this exact role      : {role_count}
+- Postings in this industry         : {industry_jobs}
+- Top hiring companies in industry  : {top_cos_str}
+- Note: BDJobs hides most salaries — this estimate uses your expert knowledge
+  of Bangladesh compensation norms, cross-referenced with the market context above.
+
+TASK — Return ONLY a valid JSON object (no markdown fences, no extra text):
+{{
+  "min_salary"       : <integer, monthly BDT, realistic floor>,
+  "max_salary"       : <integer, monthly BDT, realistic ceiling>,
+  "median_salary"    : <integer, monthly BDT, most likely/typical>,
+  "confidence"       : "<High|Medium|Low>",
+  "reasoning"        : "<3-4 sentences explaining the estimate, specific to BD market>",
+  "market_context"   : "<2 sentences: how this role/salary compares to BD market overall>",
+  "negotiation_tips" : [<3 specific, actionable negotiation tips for BD job market>],
+  "factors_up"       : [<3 things that would push this salary higher>],
+  "factors_down"     : [<3 things that would push this salary lower>]
+}}
+
+RULES:
+- All salary values must be realistic monthly BDT figures for Bangladesh
+- Entry level IT in Dhaka typically BDT 20,000–50,000
+- Mid level IT in Dhaka typically BDT 50,000–120,000
+- Senior level IT in Dhaka typically BDT 100,000–250,000+
+- NGO/Development sector: typically 30-50% above private sector
+- Banking sector: typically 20-40% above average
+- Garments/Manufacturing: typically below average
+- Outside Dhaka: typically 15-25% lower
+- Be realistic and specific — not overly optimistic
+- confidence: High if role+industry is common, Low if niche/rare"""
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a precise Bangladesh compensation analyst. "
+                "Reply with a valid JSON object only — no prose, no markdown."
+            ),
+        },
+        {"role": "user", "content": prompt},
+    ]
+
+    raw = _call_groq(messages, max_tokens=900)
 
     # Parse JSON
     try:
@@ -422,31 +457,34 @@ RULES:
                 clean = clean[4:]
         result = json.loads(clean.strip())
     except Exception:
-        return {"error": f"Could not parse AI response. Raw output:\n\n{raw}"}
+        return {"error": f"Could not parse AI response:\n\n{raw}"}
 
-    # Validate required keys are present
-    required = [
-        "readiness_score", "matched_skills", "missing_critical",
-        "missing_optional", "strengths", "top_roles", "summary",
-    ]
-    for key in required:
+    # Validate numeric fields
+    for key in ("min_salary", "max_salary", "median_salary"):
         if key not in result:
-            result[key] = [] if key != "readiness_score" else 50
+            return {"error": f"AI response missing '{key}'. Please try again."}
+        try:
+            result[key] = int(result[key])
+        except (ValueError, TypeError):
+            return {"error": f"Invalid salary value for '{key}'. Please try again."}
 
-    # Add score label and colour
-    score = int(result.get("readiness_score", 50))
-    if score >= 80:
-        result["score_label"] = "Strong"
-        result["score_color"] = "#16a34a"   # green
-    elif score >= 60:
-        result["score_label"] = "Good"
-        result["score_color"] = "#2563eb"   # blue
-    elif score >= 40:
-        result["score_label"] = "Developing"
-        result["score_color"] = "#d97706"   # amber
-    else:
-        result["score_label"] = "Early Stage"
-        result["score_color"] = "#dc2626"   # red
+    # Ensure logical ordering
+    result["min_salary"]    = min(result["min_salary"],    result["median_salary"])
+    result["max_salary"]    = max(result["max_salary"],    result["median_salary"])
+    result["currency"]      = "BDT"
+
+    # Confidence colour
+    conf = result.get("confidence", "Medium")
+    result["confidence_color"] = (
+        "#16a34a" if conf == "High" else
+        "#d97706" if conf == "Medium" else
+        "#dc2626"
+    )
+
+    # Ensure list fields exist
+    for key in ("negotiation_tips", "factors_up", "factors_down"):
+        if key not in result or not isinstance(result[key], list):
+            result[key] = []
 
     result["error"] = None
     return result
