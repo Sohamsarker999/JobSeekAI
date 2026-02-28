@@ -31,6 +31,10 @@ from utils import (  # noqa: E402
     load_data,
     most_common_value,
     top_skills_list,
+    get_delta_jobs,
+    get_jobs_today,
+    get_new_companies_today,
+    get_data_freshness,
 )
 from visualizations import (  # noqa: E402
     plot_industry_distribution,
@@ -46,25 +50,76 @@ from visualizations import (  # noqa: E402
 st.markdown(
     """
     <style>
+    /* ── Metric cards ─────────────────────────────────────────────────── */
     [data-testid="stMetric"] {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 12px 16px;
+        background    : #f8fafc;
+        border        : 1px solid #e2e8f0;
+        border-radius : 10px;
+        padding       : 16px 20px;
+        transition    : box-shadow 0.2s;
     }
-    hr { margin: 2rem 0; }
+    [data-testid="stMetric"]:hover {
+        box-shadow : 0 4px 12px rgba(37,99,235,0.10);
+    }
+    [data-testid="stMetricLabel"] {
+        font-size   : 0.82rem;
+        font-weight : 600;
+        color       : #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    [data-testid="stMetricValue"] {
+        font-size   : 1.9rem;
+        font-weight : 700;
+        color       : #1e293b;
+    }
 
-    /* Recommendation cards */
-    .rec-card {
-        background: #f0f7ff;
-        border-left: 4px solid #2563EB;
-        border-radius: 6px;
-        padding: 14px 18px;
-        margin-bottom: 10px;
+    /* ── Hero banner ──────────────────────────────────────────────────── */
+    .hero-banner {
+        background    : linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
+        border-radius : 14px;
+        padding       : 36px 40px;
+        margin-bottom : 28px;
+        color         : white;
     }
-    .score-high  { color: #16a34a; font-weight: bold; font-size: 1.1rem; }
-    .score-mid   { color: #d97706; font-weight: bold; font-size: 1.1rem; }
-    .score-low   { color: #dc2626; font-weight: bold; font-size: 1.1rem; }
+    .hero-banner h1 {
+        font-size   : 2.1rem;
+        font-weight : 800;
+        margin      : 0 0 8px 0;
+        line-height : 1.2;
+    }
+    .hero-banner p {
+        font-size : 1.05rem;
+        opacity   : 0.88;
+        margin    : 0;
+    }
+
+    /* ── Freshness badge ──────────────────────────────────────────────── */
+    .freshness-badge {
+        display       : inline-flex;
+        align-items   : center;
+        gap           : 6px;
+        padding       : 5px 14px;
+        border-radius : 99px;
+        font-size     : 0.82rem;
+        font-weight   : 600;
+        margin-top    : 14px;
+    }
+    .badge-fresh  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-stale  { background: #fef9c3; color: #a16207; border: 1px solid #fde047; }
+    .badge-old    { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-unknown{ background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
+    /* ── Recommendation cards ─────────────────────────────────────────── */
+    .rec-card {
+        background    : #f0f7ff;
+        border-left   : 4px solid #2563EB;
+        border-radius : 6px;
+        padding       : 14px 18px;
+        margin-bottom : 10px;
+    }
+
+    hr { margin: 2rem 0; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -128,18 +183,30 @@ with st.sidebar:
 # Apply filters
 df = apply_filters(raw_df, sel_industries, sel_roles, sel_locations)
 
+
 # ═══════════════════════════════════════════════════════════════════════════
-# HEADER
+# HERO BANNER  ◄─ NEW
 # ═══════════════════════════════════════════════════════════════════════════
 
+freshness      = get_data_freshness(raw_df)
+badge_class    = f"badge-{freshness['status']}"
+badge_text     = f"{freshness['emoji']} Data last updated: {freshness['last_updated']}"
+
 st.markdown(
-    """
-    # 📊 JobSeekAI — Bangladesh Job Market Dashboard
-    Live analytics on job demand, hiring trends, and AI-powered market
-    intelligence from **{count}** job postings scraped from BDJobs.
-    """.format(count=len(df))
+    f"""
+    <div class="hero-banner">
+        <h1>📊 JobSeekAI — Bangladesh Job Market</h1>
+        <p>
+            Live analytics on job demand, hiring trends, and AI-powered
+            market intelligence — scraped daily from BDJobs.com
+        </p>
+        <div class="freshness-badge {badge_class}">
+            {badge_text}
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.markdown("---")
 
 if df.empty:
     st.warning(
@@ -150,19 +217,53 @@ if df.empty:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# KEY METRICS
+# KEY METRICS  ◄─ IMPROVED WITH DELTAS
 # ═══════════════════════════════════════════════════════════════════════════
+
+# Compute deltas from the full (unfiltered) dataset so they always reflect
+# the real daily change, regardless of what filters are active.
+delta_jobs      = get_delta_jobs(raw_df)
+jobs_today      = get_jobs_today(raw_df)
+new_cos_today   = get_new_companies_today(raw_df)
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Total Postings", f"{len(df)}")
+    st.metric(
+        label    = "📋 Total Postings",
+        value    = f"{len(df):,}",
+        delta    = f"+{jobs_today} today" if jobs_today > 0 else "No new jobs today",
+        delta_color = "normal" if jobs_today > 0 else "off",
+    )
+
 with col2:
-    st.metric("Unique Companies", df["company"].nunique())
+    st.metric(
+        label    = "🏢 Unique Companies",
+        value    = f"{df['company'].nunique():,}",
+        delta    = f"+{new_cos_today} new today" if new_cos_today > 0 else None,
+        delta_color = "normal",
+    )
+
 with col3:
-    st.metric("Industries", df["industry"].nunique())
+    st.metric(
+        label = "🏭 Industries",
+        value = f"{df['industry'].nunique()}",
+        delta = None,
+    )
+
 with col4:
-    st.metric("Locations", df["location"].nunique())
+    st.metric(
+        label = "📍 Locations",
+        value = f"{df['location'].nunique()}",
+        delta = None,
+    )
+
+# ── Daily change callout ────────────────────────────────────────────────────
+if delta_jobs > 0:
+    st.success(f"📈 **{delta_jobs} more jobs posted today** compared to yesterday.")
+elif delta_jobs < 0:
+    st.info(f"📉 **{abs(delta_jobs)} fewer jobs posted today** compared to yesterday.")
+# (no callout if delta == 0 or data unavailable — keeps UI clean)
 
 st.markdown("---")
 
@@ -277,7 +378,7 @@ st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# § 6  AI-POWERED JOB RECOMMENDATIONS  ◄─ NEW FEATURE
+# § 6  AI-POWERED JOB RECOMMENDATIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.header("🎯 AI-Powered Job Recommendations")
@@ -314,14 +415,10 @@ if submitted:
         with st.spinner("AI is scanning job listings for you … (may take ~15 seconds)"):
             recommendations = generate_job_recommendations(user_profile, df, top_n=top_n)
 
-        # ── Error state ───────────────────────────────────────────────────
         if not recommendations:
             st.error("No recommendations returned. Please try again.")
-
         elif "error" in recommendations[0]:
             st.error(recommendations[0]["error"])
-
-        # ── Success: render recommendation cards ──────────────────────────
         else:
             st.success(f"✅ Found your top **{len(recommendations)}** job matches!")
             st.markdown("---")
@@ -329,7 +426,6 @@ if submitted:
             for rec in recommendations:
                 score = rec["match_score"]
 
-                # Colour-code the score badge
                 if score >= 80:
                     score_emoji = "🟢"
                     score_label = "Strong Match"
@@ -340,11 +436,10 @@ if submitted:
                     score_emoji = "🔴"
                     score_label = "Partial Match"
 
-                # Expandable card per match
                 with st.expander(
                     f"{score_emoji}  #{rec['rank']}  —  **{rec['job_title']}** "
                     f"@ {rec['company']}  |  Score: {score}/100  ({score_label})",
-                    expanded=(rec["rank"] == 1),   # auto-open the #1 match
+                    expanded=(rec["rank"] == 1),
                 ):
                     m1, m2, m3 = st.columns(3)
                     m1.metric("📍 Location", rec["location"])
