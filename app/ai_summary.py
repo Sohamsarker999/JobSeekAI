@@ -3,10 +3,6 @@ ai_summary.py — LLM-powered market intelligence via the Groq API.
 
 Constructs a dynamic prompt from live analytics and returns an
 executive-level market insight summary.
-
-Works with both:
-  • Streamlit Cloud secrets (st.secrets)
-  • Local .env / environment variables
 """
 
 from __future__ import annotations
@@ -16,23 +12,18 @@ from typing import Dict, List, Tuple
 
 import requests
 
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"  # fast, high-quality model on Groq
-REQUEST_TIMEOUT = 30  # seconds
+GROQ_MODEL = "llama-3.3-70b-versatile"
+REQUEST_TIMEOUT = 30
 
 
 def _get_api_key() -> str | None:
-    """Retrieve the Groq API key from Streamlit secrets or environment.
-
-    Priority:
-      1. st.secrets["GROQ_API_KEY"]  (Streamlit Cloud)
-      2. os.environ["GROQ_API_KEY"]  (local .env / export)
-    """
-    # Try Streamlit secrets first (used on Streamlit Cloud)
+    """Retrieve the Groq API key from Streamlit secrets or environment."""
     try:
         import streamlit as st
         key = st.secrets.get("GROQ_API_KEY")
@@ -40,8 +31,6 @@ def _get_api_key() -> str | None:
             return key
     except Exception:
         pass
-
-    # Fall back to environment variable (local development)
     return os.environ.get("GROQ_API_KEY")
 
 
@@ -59,28 +48,35 @@ def _build_prompt(
     """Create a structured prompt for the LLM from analytical summaries."""
     skills_str = ", ".join(f"{s} ({c})" for s, c in top_skills)
 
-    return f"""You are a senior labour-market analyst specialising in the 
-Bangladesh technology sector.
+    salary_line = ""
+    if avg_salary and avg_salary > 0:
+        salary_line = f"• Average offered salary: BDT {avg_salary:,.0f}/month"
+    else:
+        salary_line = "• Salary data: Most employers list salary as 'Negotiable'"
 
-Based on the following real data extracted from recent job postings, write a 
-concise (~200 words) executive market intelligence brief.
+    return f"""You are a senior labour-market analyst specialising in the
+Bangladesh job market.
+
+Based on the following real data extracted from recent job postings on
+BDJobs.com (the largest job portal in Bangladesh), write a concise (~200 words)
+executive market intelligence brief.
 
 DATA SNAPSHOT
 ─────────────
-• Top in-demand skills (with frequency): {skills_str}
-• Average offered salary: BDT {avg_salary:,.0f}/month
+• Top in-demand roles/requirements (with frequency): {skills_str}
+{salary_line}
 • Most common job role: {top_role}
 • Dominant industry: {top_industry}
 
 REQUIREMENTS
-1. Open with a one-sentence market headline.
-2. Highlight 2-3 key talent-demand trends.
-3. Comment on salary competitiveness relative to the region.
-4. Provide 2 actionable recommendations for job seekers.
+1. Open with a one-sentence market headline about Bangladesh job market.
+2. Highlight 2-3 key hiring trends visible in this data.
+3. Comment on which industries are hiring most aggressively.
+4. Provide 2 actionable recommendations for job seekers in Bangladesh.
 5. Close with a forward-looking outlook (1-2 sentences).
 
-Write in a professional, data-driven tone suitable for an executive 
-dashboard. Avoid filler phrases. Be specific."""
+Write in a professional, data-driven tone suitable for an executive
+dashboard. Avoid filler phrases. Be specific to Bangladesh context."""
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +87,7 @@ FALLBACK_MESSAGE = (
     "⚠️ **AI Summary Unavailable**\n\n"
     "Could not generate the market intelligence summary at this time. "
     "Please verify your `GROQ_API_KEY` environment variable is set and try again.\n\n"
-    "You can still explore the skill and salary analytics above."
+    "You can still explore the analytics above."
 )
 
 
@@ -101,10 +97,7 @@ def generate_market_summary(
     top_role: str,
     top_industry: str,
 ) -> str:
-    """Call the Groq API and return a market-insight paragraph.
-
-    Returns a graceful fallback message on any failure.
-    """
+    """Call the Groq API and return a market-insight paragraph."""
     api_key = _get_api_key()
     if not api_key:
         return (
